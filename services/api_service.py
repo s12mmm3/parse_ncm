@@ -8,11 +8,10 @@ import requests
 from zhenxun.services.log import logger
 
 from ..model import (
-    SongInfo,
+    SongInfo, AlbumInfo,
 )
 from ..utils.exceptions import (
     NcmResponseError,
-    ResourceNotFoundError,
     RateLimitError,
 )
 
@@ -29,16 +28,7 @@ class NcmApiService:
 
     @staticmethod
     def _map_song_info_to_model(info: Dict[str, Any]) -> SongInfo:
-        """
-        将API返回的歌曲信息映射到SongInfo模型
-
-        Args:
-            info: API返回的歌曲信息
-            parsed_url: 解析后的URL
-
-        Returns:
-            SongInfo模型实例
-        """
+        """将API返回的歌曲信息映射到SongInfo模型"""
         song_model = SongInfo(
             id = str(info["id"]),
             name = str(info["name"]),
@@ -53,6 +43,25 @@ class NcmApiService:
         )
 
         return song_model
+
+    @staticmethod
+    def _map_album_info_to_model(info: Dict[str, Any]) -> AlbumInfo:
+        """将API返回的专辑信息映射到AlbumInfo模型"""
+        album = dict(info["album"])
+        album_model = AlbumInfo(
+            id = str(album["id"]),
+            name = str(album["name"]),
+            artists = list(album["artists"]),
+            picUrl = str(album["picUrl"]),
+            description = str(album["description"]),
+            publishTime = int(album["publishTime"]),
+
+            commentCount = int(info["commentCount"]),
+            shareCount = int(info["shareCount"]),
+            songs = list(info["songs"]),
+        )
+
+        return album_model
     
 
     @staticmethod
@@ -77,7 +86,7 @@ class NcmApiService:
             "fixliked": True,
             "needupgradedinfo": True,
             "resourceIds": json.dumps([ id ]),
-            "resourceType": 4
+            "resourceType": 3
         }
 
         ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
@@ -99,45 +108,61 @@ class NcmApiService:
         return { **ret0, **ret1, **ret2 }
 
     @staticmethod
+    async def album_detail(id: str):
+        # 专辑详情
+        data0 = { }
+        ret0 = dict((await NcmApiService.request(f"/api/v1/album/{id}", data0)))
+        # 专辑评论信息
+        data1 = {
+            "fixliked": True,
+            "needupgradedinfo": True,
+            "resourceIds": json.dumps([ id ]),
+            "resourceType": 3
+        }
+
+        ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
+        return { **ret0, **ret1, }
+
+    @staticmethod
     async def get_song_info(id: str) -> SongInfo:
-        """
-        获取歌曲信息
-
-        Args:
-            id: 歌曲ID
-
-        Returns:
-            SongInfo模型实例
-
-        Raises:
-            ResourceNotFoundError: 当视频不存在时
-            NcmResponseError: 当API响应错误时
-            NcmRequestError: 当网络请求错误时
-        """
+        """获取歌曲信息"""
         logger.debug(f"获取歌曲信息: {id}", "网易云解析")
 
         try:
             info = (await NcmApiService.song_detail(id))
 
-            if not info or "name" not in info:
-                logger.warning(f"歌曲未找到: {id}", "网易云解析")
-                raise ResourceNotFoundError(f"歌曲未找到: {id}")
-
             logger.debug(f"创建SongInfo模型: {id}", "网易云解析")
-            song_model = NcmApiService._map_song_info_to_model(info)
+            model = NcmApiService._map_song_info_to_model(info)
 
-            logger.debug(f"歌曲信息获取成功: {song_model.name}", "网易云解析")
-            return song_model
-
-        except ResourceNotFoundError:
-            raise ResourceNotFoundError(
-                f"歌曲未找到: {id}", context={"id": id}
-            )
+            logger.debug(f"歌曲信息获取成功: {model.name}", "网易云解析")
+            return model
 
         except Exception as e:
             logger.error(f"获取歌曲信息失败 ({id}): {e}", "网易云解析")
             raise NcmResponseError(
                 f"获取歌曲信息意外错误 ({id}): {e}",
+                cause=e,
+                context={"id": id},
+            )
+
+    @staticmethod
+    async def get_album_info(id: str) -> AlbumInfo:
+        """获取专辑信息"""
+        logger.debug(f"获取专辑信息: {id}", "网易云解析")
+
+        try:
+            info = (await NcmApiService.album_detail(id))
+
+            logger.debug(f"创建AlbumInfo模型: {id}", "网易云解析")
+            model = NcmApiService._map_album_info_to_model(info)
+
+            logger.debug(f"专辑信息获取成功: {model.name}", "网易云解析")
+            return model
+
+        except Exception as e:
+            logger.error(f"获取专辑信息失败 ({id}): {e}", "网易云解析")
+            raise NcmResponseError(
+                f"获取专辑信息意外错误 ({id}): {e}",
                 cause=e,
                 context={"id": id},
             )

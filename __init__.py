@@ -30,20 +30,18 @@ from .utils.exceptions import (
     NcmRequestError,
     NcmResponseError,
     ScreenshotError,
-    ResourceNotFoundError,
 )
-from .model import SongInfo
+from .model import SongInfo, AlbumInfo
 from .utils.url_parser import UrlParserRegistry, extract_ncm_url_from_message
 
 __plugin_meta__ = PluginMetadata(
     name="网易云内容解析",
-    description="网易云内容解析（歌曲、专辑、歌单、歌手、用户），支持被动解析、命令下载和自动下载。",
+    description="网易云内容解析（歌曲、专辑、歌单、歌手、用户），支持被动解析。",
     usage="""
     插件功能：
-    1. 被动解析：自动监听消息中的 B 站链接，并发送解析结果（可配置渲染成图片）。
-       - 支持视频(av/BV)、直播、专栏(cv)、动态(t.bili/opus)、番剧/影视(ss/ep)、用户空间(space)。
-       - 支持短链(b23.tv)、小程序/卡片（需开启）。
-       - 默认配置下，5分钟内同一链接在同一会话不重复解析。
+    1. 被动解析：自动监听消息中的网易云链接，并发送解析结果。
+       - 支持歌曲、专辑。
+       - 支持短链(163cn.tv)。
        - 开启方式：
          方式一：使用命令「开启群被动网易云解析」或「关闭群被动网易云解析」
          方式二：在bot的Webui页面的「群组」中修改群被动状态「网易云解析」
@@ -83,12 +81,6 @@ async def _rule(
     logger.debug("消息不符合被动解析规则", "网易云解析")
     return False
 
-
-async def _build_song_message(
-    song_info: SongInfo, render_enabled: bool
-) -> Optional[UniMsg]:
-    return await MessageBuilder.build_song_message(song_info)
-
 _matcher = on_message(priority=50, block=False, rule=_rule)
 
 check_hyper = True # 是否解析小程序
@@ -103,7 +95,7 @@ async def _(
     logger.debug(f"Handler received message: {message}", "网易云解析")
 
     parsed_content: Union[
-        SongInfo, None
+        SongInfo, AlbumInfo, None
     ] = None
 
     target_url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
@@ -116,16 +108,9 @@ async def _(
         logger.info(f"开始解析URL: {target_url}", "网易云解析", session=session)
 
         parsed_content: Union[
-            SongInfo, None
+            SongInfo, AlbumInfo, None
         ] = await ParserService.parse(target_url)
         logger.debug(f"解析结果类型: {type(parsed_content).__name__}", "网易云解析")
-    except ResourceNotFoundError as e:
-        logger.info(
-            f"资源不存在: {target_url}, 错误: {e}",
-            "网易云解析",
-            session=session,
-        )
-        return
 
     except (UrlParseError, UnsupportedUrlError) as e:
         logger.warning(
@@ -171,9 +156,9 @@ async def _(
             render_enabled = base_config.get("RENDER_AS_IMAGE", False)
 
             if isinstance(parsed_content, SongInfo):
-                final_message = await _build_song_message(
-                    parsed_content, render_enabled
-                )
+                final_message = await MessageBuilder.build_song_message(parsed_content)
+            elif isinstance(parsed_content, AlbumInfo):
+                final_message = await MessageBuilder.build_album_message(parsed_content)
             else:
                 logger.warning(
                     f"内容类型不支持或已禁用: {type(parsed_content).__name__}",

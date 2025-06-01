@@ -14,14 +14,13 @@ from ..utils.exceptions import UrlParseError, UnsupportedUrlError
 
 class ResourceType(Enum):
     """资源类型"""
-
-    SHORT_URL = auto()
-#歌曲、专辑、歌单、歌手、用户
+    # 歌曲、专辑、歌单、歌手、用户、短链接
     SONG = auto()
     ALBUM = auto()
     PLAYLIST = auto()
     USER = auto()
     ARTIST = auto()
+    SHORT_URL = auto()
 
 
 class UrlParser(ABC):
@@ -88,12 +87,6 @@ class SongParser(RegexUrlParser):
     #     match = cls.PATTERN.search(url)
     #     if not match:
     #         raise UrlParseError(f"无法解析歌曲ID: {url}")
-    #     # # 打印整个匹配字符串
-    #     # print("完整匹配:", match.group(0))  # 输出：2025-06-01
-        
-    #     # # 遍历所有分组（从索引1开始）
-    #     # for i in range(1, len(match.groups()) + 1):
-    #     #     print(f"分组 {i}: {match.group(i)}")
 
     #     id = match.group(1)
 
@@ -101,6 +94,16 @@ class SongParser(RegexUrlParser):
     #         return cls.RESOURCE_TYPE, f"{id}"
     #     else:
     #         raise UrlParseError(f"无法从匹配中提取歌曲ID: {url}")
+
+class AlbumParser(RegexUrlParser):
+    """网易云音乐专辑链接解析器"""
+    
+    PRIORITY = 10
+    RESOURCE_TYPE = ResourceType.ALBUM
+    PATTERN = re.compile(
+        r"music\.163\.com.*/album\?id=(\d+)",
+        re.IGNORECASE          # 忽略大小写
+    )
 
 class ShortUrlParser(RegexUrlParser):
     """网易云短链接解析器"""
@@ -146,8 +149,8 @@ class UrlParserRegistry:
             raise UrlParseError(f"解析URL时出错: {e}") from e
 
 UrlParserRegistry.register(SongParser)
+UrlParserRegistry.register(AlbumParser)
 UrlParserRegistry.register(ShortUrlParser)
-
 
 def extract_url_from_text(text: str) -> Optional[str]:
     """提取URL"""

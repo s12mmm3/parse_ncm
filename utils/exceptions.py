@@ -90,24 +90,6 @@ class ResourceError(NcmBaseException):
     pass
 
 
-class ResourceNotFoundError(ResourceError):
-    """请求的资源（视频/直播间/专栏）不存在或已被删除"""
-
-    pass
-
-
-class ResourceAccessDeniedError(ResourceError):
-    """资源访问被拒绝，如需要登录、地区限制等"""
-
-    pass
-
-
-class ResourceForbiddenError(ResourceError):
-    """资源被禁止访问，如违规内容"""
-
-    pass
-
-
 class FeatureError(NcmBaseException):
     """功能错误基类"""
 
