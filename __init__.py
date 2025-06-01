@@ -21,7 +21,6 @@ from .config import (
 )
 
 from .services.parser_service import ParserService
-from .services.cache_service import CacheService
 from .utils.message import (
     MessageBuilder,
 )
@@ -110,16 +109,7 @@ async def _(
     target_url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
 
     if not target_url:
-        logger.debug("未在消息中找到有效的 B 站 URL/ID，退出处理", "网易云解析")
-        return
-
-    should_parse = await CacheService.should_parse_url(target_url, session)
-    logger.debug(
-        f"缓存检查: '{target_url}' 在上下文 '{CacheService._get_context_key(session)}' 中: should_parse = {should_parse}",
-        "网易云解析",
-    )
-    if not should_parse:
-        logger.debug(f"URL在缓存中且TTL未过期，跳过解析: {target_url}", "网易云解析")
+        logger.debug("未在消息中找到有效的 网易云 URL，退出处理", "网易云解析")
         return
 
     try:
@@ -193,7 +183,6 @@ async def _(
             if final_message:
                 logger.debug(f"准备发送最终消息: {final_message}", "网易云解析")
                 await final_message.send()
-                await CacheService.add_url_to_cache(target_url, session)
                 logger.info(
                     f"成功被动解析并发送: {target_url}", "网易云解析", session=session
                 )
@@ -204,7 +193,6 @@ async def _(
                     "网易云解析",
                     session=session,
                 )
-                await CacheService.add_url_to_cache(target_url, session)
 
         except Exception as e:
             logger.error(

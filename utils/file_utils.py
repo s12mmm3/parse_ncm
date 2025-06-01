@@ -100,13 +100,3 @@ async def download_file(
                 return False
 
     return False
-
-def get_temp_file_path(
-    prefix: str,
-    suffix: str,
-    identifier: str,
-    title: Optional[str] = None,
-) -> Path:
-    """生成临时文件路径"""
-    filename = f"{prefix}{identifier}{suffix}"
-    return PLUGIN_TEMP_DIR / filename
