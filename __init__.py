@@ -1,0 +1,228 @@
+import traceback
+import asyncio
+from typing import Union, Optional
+from nonebot import on_message, get_driver
+from nonebot.plugin import PluginMetadata
+from nonebot.params import RawCommand
+from nonebot.adapters import Bot, Event
+
+from nonebot_plugin_uninfo import Uninfo
+from nonebot_plugin_session import EventSession
+from nonebot_plugin_alconna import UniMsg, Text, Image
+
+from zhenxun.services.log import logger
+from zhenxun.utils.enum import PluginType
+
+from zhenxun.utils.common_utils import CommonUtils
+from zhenxun.configs.utils import Task, RegisterConfig, PluginExtraData
+
+from .config import (
+    base_config,
+)
+
+from .services.parser_service import ParserService
+from .services.cache_service import CacheService
+from .services.network_service import NetworkService
+from .services import auto_download_manager
+from .utils.message import (
+    MessageBuilder,
+)
+from .utils.exceptions import (
+    UrlParseError,
+    UnsupportedUrlError,
+    NcmRequestError,
+    NcmResponseError,
+    ScreenshotError,
+    ResourceNotFoundError,
+)
+from .model import SongInfo
+from .utils.url_parser import UrlParserRegistry, extract_ncm_url_from_message
+
+__plugin_meta__ = PluginMetadata(
+    name="网易云内容解析",
+    description="网易云内容解析（歌曲、专辑、歌单、歌手、用户），支持被动解析、命令下载和自动下载。",
+    usage="""
+    插件功能：
+    1. 被动解析：自动监听消息中的 B 站链接，并发送解析结果（可配置渲染成图片）。
+       - 支持视频(av/BV)、直播、专栏(cv)、动态(t.bili/opus)、番剧/影视(ss/ep)、用户空间(space)。
+       - 支持短链(b23.tv)、小程序/卡片（需开启）。
+       - 默认配置下，5分钟内同一链接在同一会话不重复解析。
+       - 开启方式：
+         方式一：使用命令「开启群被动网易云解析」或「关闭群被动网易云解析」
+         方式二：在bot的Webui页面的「群组」中修改群被动状态「网易云解析」
+    """.strip(),
+    extra=PluginExtraData(
+        author="overwriter",
+        version="1.0.0",
+        plugin_type=PluginType.DEPENDANT,
+        menu_type="其他",
+        configs=[],
+        tasks=[Task(module="parse_ncm", name="网易云解析")],
+    ).dict(),
+)
+
+
+async def _rule(
+    uninfo: Uninfo, message: UniMsg, cmd: tuple | None = RawCommand()
+) -> bool:
+    # if await CommonUtils.task_is_block(uninfo, "parse_ncm"):
+    #     return False
+    if cmd is not None and cmd:
+        if cmd[0] == "ncm下载":
+            logger.debug("消息被识别为 ncm下载 命令，被动解析跳过", "网易云解析")
+            return False
+
+    plain_text = message.extract_plain_text().strip()
+    if (
+        plain_text.startswith("ncm下载")
+    ):
+        logger.debug(f"消息文本以命令开头，被动解析跳过: {plain_text}", "网易云解析")
+        return False
+
+    url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
+
+    if url:
+        logger.debug(f"从消息中提取到网易云URL: {url}", "网易云解析")
+        return True
+
+    plain_text_for_check = message.extract_plain_text().strip()
+    if plain_text_for_check:
+        logger.debug(f"检查文本内容: '{plain_text_for_check[:100]}...'", "网易云解析")
+        parser_found = UrlParserRegistry.get_parser(plain_text_for_check)
+        if parser_found and parser_found.__name__ == "PureVideoIdParser":
+            if parser_found.PATTERN.fullmatch(plain_text_for_check):
+                logger.debug("文本内容匹配到纯视频ID，符合规则", "网易云解析")
+                return True
+
+    logger.debug("消息不符合被动解析规则", "网易云解析")
+    return False
+
+
+async def _build_song_message(
+    song_info: SongInfo, render_enabled: bool
+) -> Optional[UniMsg]:
+    return await MessageBuilder.build_song_message(song_info)
+
+_matcher = on_message(priority=50, block=False, rule=_rule)
+
+check_hyper = True # 是否解析小程序
+
+@_matcher.handle()
+async def _(
+    bot: Bot,
+    event: Event,
+    session: EventSession,
+    message: UniMsg,
+):
+    logger.debug(f"Handler received message: {message}", "网易云解析")
+
+    parsed_content: Union[
+        SongInfo, None
+    ] = None
+
+    target_url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
+
+    if not target_url:
+        logger.debug("未在消息中找到有效的 B 站 URL/ID，退出处理", "网易云解析")
+        return
+
+    should_parse = await CacheService.should_parse_url(target_url, session)
+    logger.debug(
+        f"缓存检查: '{target_url}' 在上下文 '{CacheService._get_context_key(session)}' 中: should_parse = {should_parse}",
+        "网易云解析",
+    )
+    if not should_parse:
+        logger.debug(f"URL在缓存中且TTL未过期，跳过解析: {target_url}", "网易云解析")
+        return
+
+    try:
+        logger.info(f"开始解析URL: {target_url}", "网易云解析", session=session)
+
+        parsed_content: Union[
+            SongInfo, None
+        ] = await ParserService.parse(target_url)
+        logger.debug(f"解析结果类型: {type(parsed_content).__name__}", "网易云解析")
+    except ResourceNotFoundError as e:
+        logger.info(
+            f"资源不存在: {target_url}, 错误: {e}",
+            "网易云解析",
+            session=session,
+        )
+        return
+
+    except (UrlParseError, UnsupportedUrlError) as e:
+        logger.warning(
+            f"URL解析失败: {target_url}. 原因: {e}",
+            "网易云解析",
+            session=session,
+        )
+        return
+
+    except (NcmRequestError, NcmResponseError) as e:
+        logger.error(
+            f"API请求或响应错误: {target_url}. 类型: {type(e).__name__}, 原因: {e}",
+            "网易云解析",
+            session=session,
+        )
+        return
+
+    except ScreenshotError as e:
+        logger.error(
+            f"截图失败: {target_url}. 原因: {e}",
+            "网易云解析",
+            session=session,
+        )
+        return
+
+    except Exception as e:
+        logger.error(
+            f"处理URL时发生意外错误: {target_url}",
+            "网易云解析",
+            session=session,
+            e=e,
+        )
+        logger.error(traceback.format_exc())
+        return
+
+    if parsed_content:
+        logger.debug(
+            f"Building message for parsed content type: {type(parsed_content).__name__}",
+            "网易云解析",
+        )
+        try:
+            final_message: UniMsg | None = None
+            render_enabled = base_config.get("RENDER_AS_IMAGE", False)
+
+            if isinstance(parsed_content, SongInfo):
+                final_message = await _build_song_message(
+                    parsed_content, render_enabled
+                )
+            else:
+                logger.warning(
+                    f"内容类型不支持或已禁用: {type(parsed_content).__name__}",
+                    "网易云解析",
+                )
+
+            if final_message:
+                logger.debug(f"准备发送最终消息: {final_message}", "网易云解析")
+                await final_message.send()
+                await CacheService.add_url_to_cache(target_url, session)
+                logger.info(
+                    f"成功被动解析并发送: {target_url}", "网易云解析", session=session
+                )
+
+            else:
+                logger.info(
+                    f"最终消息为空或未构建 (被动解析): {target_url}",
+                    "网易云解析",
+                    session=session,
+                )
+                await CacheService.add_url_to_cache(target_url, session)
+
+        except Exception as e:
+            logger.error(
+                f"Error building or sending message for {target_url}: {e}",
+                "网易云解析",
+                session=session,
+            )
+            logger.error(traceback.format_exc())
