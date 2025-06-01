@@ -22,8 +22,6 @@ from .config import (
 
 from .services.parser_service import ParserService
 from .services.cache_service import CacheService
-from .services.network_service import NetworkService
-from .services import auto_download_manager
 from .utils.message import (
     MessageBuilder,
 )
@@ -67,17 +65,6 @@ async def _rule(
 ) -> bool:
     # if await CommonUtils.task_is_block(uninfo, "parse_ncm"):
     #     return False
-    if cmd is not None and cmd:
-        if cmd[0] == "ncm下载":
-            logger.debug("消息被识别为 ncm下载 命令，被动解析跳过", "网易云解析")
-            return False
-
-    plain_text = message.extract_plain_text().strip()
-    if (
-        plain_text.startswith("ncm下载")
-    ):
-        logger.debug(f"消息文本以命令开头，被动解析跳过: {plain_text}", "网易云解析")
-        return False
 
     url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
 

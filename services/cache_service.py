@@ -33,13 +33,7 @@ class CacheService:
     """统一缓存管理服务"""
 
     FILE_EXPIRY = {
-        "bili_video_cover_": 1,
-        "bili_avatar_": 7,
-        "bili_live_cover_": 1,
-        "bili_live_keyframe_": 0.04,
-        "bili_article_": 1,
-        "bili_opus_": 1,
-        "bili_video_": 1,
+        "ncm_video_cover_": 1,
     }
 
     _CLEAN_INTERVAL = 24 * 3600
@@ -66,7 +60,7 @@ class CacheService:
 
         if auto_clean_enabled:
             task = asyncio.create_task(cls._auto_clean_task())
-            task.set_name("bilibili_cache_cleaner")
+            task.set_name("ncm_cache_cleaner")
             logger.info("缓存自动清理任务已启动", "网易云解析")
 
         logger.info("统一缓存服务初始化完成", "网易云解析")

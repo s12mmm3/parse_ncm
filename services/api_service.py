@@ -28,7 +28,7 @@ class NcmApiService:
     """网易云API服务，负责获取歌曲、专辑等信息"""
 
     @staticmethod
-    def _map_song_info_to_model(info: Dict[str, Any], parsed_url: str) -> SongInfo:
+    def _map_song_info_to_model(info: Dict[str, Any]) -> SongInfo:
         """
         将API返回的歌曲信息映射到SongInfo模型
 
@@ -99,23 +99,22 @@ class NcmApiService:
         return { **ret0, **ret1, **ret2 }
 
     @staticmethod
-    async def get_song_info(id: str, parsed_url: str) -> SongInfo:
+    async def get_song_info(id: str) -> SongInfo:
         """
         获取歌曲信息
 
         Args:
             id: 歌曲ID
-            parsed_url: 解析后的URL
 
         Returns:
             SongInfo模型实例
 
         Raises:
             ResourceNotFoundError: 当视频不存在时
-            BilibiliResponseError: 当API响应错误时
-            BilibiliRequestError: 当网络请求错误时
+            NcmResponseError: 当API响应错误时
+            NcmRequestError: 当网络请求错误时
         """
-        logger.debug(f"获取歌曲信息: {id}, URL: {parsed_url}", "网易云解析")
+        logger.debug(f"获取歌曲信息: {id}", "网易云解析")
 
         try:
             info = (await NcmApiService.song_detail(id))
@@ -125,14 +124,14 @@ class NcmApiService:
                 raise ResourceNotFoundError(f"歌曲未找到: {id}")
 
             logger.debug(f"创建SongInfo模型: {id}", "网易云解析")
-            song_model = NcmApiService._map_song_info_to_model(info, parsed_url)
+            song_model = NcmApiService._map_song_info_to_model(info)
 
             logger.debug(f"歌曲信息获取成功: {song_model.name}", "网易云解析")
             return song_model
 
         except ResourceNotFoundError:
             raise ResourceNotFoundError(
-                f"歌曲未找到: {id}", context={"id": id, "url": parsed_url}
+                f"歌曲未找到: {id}", context={"id": id}
             )
 
         except Exception as e:
@@ -140,5 +139,5 @@ class NcmApiService:
             raise NcmResponseError(
                 f"获取歌曲信息意外错误 ({id}): {e}",
                 cause=e,
-                context={"id": id, "url": parsed_url},
+                context={"id": id},
             )

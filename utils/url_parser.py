@@ -15,7 +15,6 @@ from ..utils.exceptions import UrlParseError, UnsupportedUrlError
 class ResourceType(Enum):
     """资源类型"""
 
-    BANGUMI = auto()
     SHORT_URL = auto()
 #歌曲、专辑、歌单、歌手、用户
     SONG = auto()
@@ -111,42 +110,6 @@ class ShortUrlParser(RegexUrlParser):
     PATTERN = re.compile(r"163cn\.tv/([A-Za-z0-9]+)")
 
 
-class BangumiUrlParser(RegexUrlParser):
-    """番剧/影视链接解析器"""
-
-    PRIORITY = 70
-    RESOURCE_TYPE = ResourceType.BANGUMI
-    PATTERN = re.compile(
-        r"(?:https?://)?(?:www\.|m\.)?bilibili\.com/bangumi/play/(ss\d+|ep\d+)"
-    )
-
-    @classmethod
-    def can_parse(cls, url: str) -> bool:
-        """检查是否可以解析指定URL，增强番剧链接识别能力"""
-        if super().can_parse(url):
-            return True
-        if "/bangumi/play/ep" in url or "/bangumi/play/ss" in url:
-            logger.debug(f"通过关键字匹配识别到番剧链接: {url}")
-            return True
-        return False
-
-    @classmethod
-    def parse(cls, url: str) -> Tuple[ResourceType, str]:
-        """解析URL，提取资源类型和ID，增强番剧链接解析能力"""
-        try:
-            return super().parse(url)
-        except UrlParseError:
-            ep_match = re.search(r"/ep(\d+)", url)
-            if ep_match:
-                return cls.RESOURCE_TYPE, f"ep{ep_match.group(1)}"
-
-            ss_match = re.search(r"/ss(\d+)", url)
-            if ss_match:
-                return cls.RESOURCE_TYPE, f"ss{ss_match.group(1)}"
-
-            raise UrlParseError(f"无法从URL提取番剧ID: {url}")
-
-
 class UrlParserRegistry:
     """URL解析器注册表"""
 
@@ -183,8 +146,7 @@ class UrlParserRegistry:
             raise UrlParseError(f"解析URL时出错: {e}") from e
 
 UrlParserRegistry.register(SongParser)
-# UrlParserRegistry.register(ShortUrlParser)
-# UrlParserRegistry.register(BangumiUrlParser)
+UrlParserRegistry.register(ShortUrlParser)
 
 
 def extract_url_from_text(text: str) -> Optional[str]:
@@ -194,93 +156,11 @@ def extract_url_from_text(text: str) -> Optional[str]:
     return common_extract_url(text)
 
 
-def extract_bilibili_url_from_miniprogram(raw_str: str) -> Optional[str]:
-    """从小程序消息提取网易云URL"""
-    logger.debug(f"开始解析小程序消息，原始数据长度: {len(raw_str)}")
-
-    bangumi_match = re.search(
-        r"(?:https?://)?(?:www\.|m\.)?bilibili\.com/bangumi/play/(ss\d+|ep\d+)", raw_str
-    )
-    if bangumi_match:
-        bangumi_url = bangumi_match.group(0)
-        logger.info(f"通过正则从小程序消息直接提取到番剧链接: {bangumi_url}")
-        return bangumi_url
-
-    qqdocurl_match = re.search(r'"qqdocurl"\s*:\s*"([^"]+)"', raw_str)
-    if qqdocurl_match:
-        qqdocurl = qqdocurl_match.group(1).replace("\\", "")
-        logger.debug(f"从小程序消息提取到 qqdocurl: {qqdocurl}")
-        if "b23.tv" in qqdocurl or "bilibili.com" in qqdocurl:
-            logger.info(f"通过正则从小程序消息提取到网易云链接: {qqdocurl}")
-            return qqdocurl
-
-    url_match = re.search(
-        r'https?://[^\s"\']+(?:bilibili\.com|b23\.tv)[^\s"\']*', raw_str
-    )
-    if url_match:
-        extracted_url = url_match.group(0)
-        logger.info(f"通过通用正则从小程序消息提取到网易云链接: {extracted_url}")
-        return extracted_url
-
-    try:
-        data = json.loads(raw_str)
-
-        excluded_apps = [
-            "com.tencent.qun.invite",
-            "com.tencent.qqav.groupvideo",
-            "com.tencent.mobileqq.reading",
-            "com.tencent.weather",
-        ]
-
-        app_name = data.get("app") or data.get("meta", {}).get("detail_1", {}).get(
-            "appid"
-        )
-        if app_name in excluded_apps:
-            logger.debug(f"小程序 app '{app_name}' 在排除列表，跳过", "网易云解析")
-            return None
-
-        meta_data = data.get("meta", {})
-        detail_1 = meta_data.get("detail_1", {})
-        news = meta_data.get("news", {})
-
-        jump_url = (
-            news.get("jumpUrl")
-            or detail_1.get("qqdocurl")
-            or detail_1.get("preview")
-            or detail_1.get("url")
-            or data.get("jumpUrl")
-            or data.get("url")
-            or data.get("qqdocurl")
-        )
-
-        if jump_url and isinstance(jump_url, str):
-            if "bilibili.com" in jump_url or "b23.tv" in jump_url:
-                logger.info(f"从小程序JSON数据提取到网易云链接: {jump_url}")
-                return jump_url
-
-    except Exception as e:
-        logger.debug(f"解析小程序JSON失败: {e}")
-
-    return None
-
-
 def extract_ncm_url_from_message(
     message, check_hyper: bool = True
 ) -> Optional[str]:
     """从消息提取网易云URL"""
     target_url = None
-
-    if check_hyper:
-        for seg in message:
-            if isinstance(seg, Hyper) and seg.raw:
-                try:
-                    extracted_url = extract_bilibili_url_from_miniprogram(seg.raw)
-                    if extracted_url:
-                        target_url = extracted_url
-                        logger.debug(f"从Hyper段提取到网易云链接: {target_url}")
-                        break
-                except Exception as e:
-                    logger.debug(f"解析Hyper段失败: {e}")
 
     if not target_url:
         plain_text = message.extract_plain_text().strip()
@@ -304,35 +184,7 @@ def extract_ncm_url_from_message(
     return target_url
 
 
-def parse_bilibili_url(
-    url: str,
-) -> Tuple[Optional[ResourceType], Optional[str], Optional[Dict[str, Any]]]:
-    """解析网易云URL，返回资源类型、资源ID和额外信息"""
-    resource_type = None
-    resource_id = None
-    url_info_dict = {}
-
-    try:
-        parser = UrlParserRegistry.get_parser(url)
-        if parser:
-            resource_type, resource_id = parser.parse(url)
-
-            if resource_type == ResourceType.BANGUMI:
-                if resource_id.startswith("ep"):
-                    url_info_dict["ep_id"] = resource_id[2:]
-                elif resource_id.startswith("ss"):
-                    url_info_dict["season_id"] = resource_id[2:]
-
-            logger.debug(
-                f"解析URL成功: {url} -> 类型={resource_type}, ID={resource_id}"
-            )
-    except Exception as e:
-        logger.warning(f"解析URL失败: {url}, 错误: {e}")
-
-    return resource_type, resource_id, url_info_dict
-
-
-async def extract_bilibili_url_from_reply(reply: Optional[UniMsg]) -> Optional[str]:
+async def extract_ncm_url_from_reply(reply: Optional[UniMsg]) -> Optional[str]:
     """从回复消息中提取网易云URL"""
     if not reply or not reply.msg:
         logger.debug("回复消息为空")
@@ -340,20 +192,9 @@ async def extract_bilibili_url_from_reply(reply: Optional[UniMsg]) -> Optional[s
 
     target_url = None
 
-    for seg in reply.msg:
-        if isinstance(seg, Hyper) and seg.raw:
-            logger.debug(f"处理回复消息的 Hyper 段，raw 长度: {len(seg.raw)}")
-            extracted_url = extract_bilibili_url_from_miniprogram(seg.raw)
-            if extracted_url:
-                target_url = extracted_url
-                logger.info(f"从回复消息提取到网易云链接: {target_url}")
-                break
-
     if not target_url:
         patterns = {
             "b23_tv": ShortUrlParser.PATTERN,
-            "video": VideoUrlParser.PATTERN,
-            "bangumi": BangumiUrlParser.PATTERN,
         }
         url_match_order = ["b23_tv", "video", "bangumi", "live", "article", "opus"]
 
@@ -427,7 +268,7 @@ async def extract_bilibili_url_from_reply(reply: Optional[UniMsg]) -> Optional[s
     return target_url
 
 
-async def extract_bilibili_url_from_json_data(json_data: str) -> Optional[str]:
+async def extract_ncm_url_from_json_data(json_data: str) -> Optional[str]:
     """从JSON数据中提取网易云URL"""
     if not json_data:
         return None
@@ -435,12 +276,12 @@ async def extract_bilibili_url_from_json_data(json_data: str) -> Optional[str]:
     qqdocurl_match = re.search(r'"qqdocurl"\s*:\s*"([^"]+)"', json_data)
     if qqdocurl_match:
         qqdocurl = qqdocurl_match.group(1).replace("\\", "")
-        if "b23.tv" in qqdocurl or "bilibili.com" in qqdocurl:
+        if "163cn.tv" in qqdocurl or "music.163.com" in qqdocurl:
             logger.info(f"从JSON数据中提取到网易云链接: {qqdocurl}")
             return qqdocurl
 
     url_match = re.search(
-        r'https?://[^\s"\']+(?:bilibili\.com|b23\.tv)[^\s"\']*', json_data
+        r'https?://[^\s"\']+(?:music\.163\.com|163cn\.tv)[^\s"\']*', json_data
     )
     if url_match:
         extracted_url = url_match.group(0)
@@ -458,7 +299,7 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
         reply = await reply_fetch(event, bot)
         if reply:
             logger.debug("找到回复消息")
-            target_url = await extract_bilibili_url_from_reply(reply)
+            target_url = await extract_ncm_url_from_reply(reply)
             if target_url:
                 return target_url
 
@@ -486,7 +327,7 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
                     json_data = seg.data["data"]
                     logger.debug("找到回复消息中的JSON数据")
 
-                    extracted_url = await extract_bilibili_url_from_json_data(json_data)
+                    extracted_url = await extract_ncm_url_from_json_data(json_data)
                     if extracted_url:
                         target_url = extracted_url
                         return target_url
@@ -504,7 +345,7 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
                     json_data = json_match.group(1)
                     logger.debug("找到原始回复消息中的JSON数据")
 
-                    extracted_url = await extract_bilibili_url_from_json_data(json_data)
+                    extracted_url = await extract_ncm_url_from_json_data(json_data)
                     if extracted_url:
                         target_url = extracted_url
                         return target_url
@@ -538,7 +379,7 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
                             json_data = json_match.group(1)
                             logger.debug("提取到JSON数据")
 
-                            extracted_url = await extract_bilibili_url_from_json_data(
+                            extracted_url = await extract_ncm_url_from_json_data(
                                 json_data
                             )
                             if extracted_url:
@@ -552,14 +393,6 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
 
     try:
         current_message = event.get_message()
-
-        for seg in current_message:
-            if isinstance(seg, Hyper) and seg.raw:
-                extracted_url = await extract_bilibili_url_from_miniprogram(seg.raw)
-                if extracted_url:
-                    target_url = extracted_url
-                    logger.info(f"从当前消息提取到网易云链接: {target_url}")
-                    return target_url
 
         target_url = extract_ncm_url_from_message(current_message)
         if target_url:

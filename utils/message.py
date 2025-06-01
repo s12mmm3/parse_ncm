@@ -131,7 +131,7 @@ class MessageBuilder:
             f"翻译上传者: {info.transUser['nickname']}\n"
             f"翻译上传时间: {MessageBuilder.toLocaleDateString(info.transUser['uptime'])}\n"
 
-            f"链接: https://music.163.com/#/song?id={info.id}"
+            f"https://music.163.com/#/song?id={info.id}"
         )
         segments.append(Text(text_content))
 

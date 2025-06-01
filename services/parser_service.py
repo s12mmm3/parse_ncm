@@ -43,7 +43,7 @@ class ParserService:
 
         if resource_type == ResourceType.SONG:
             return await NcmApiService.get_song_info(
-                id=resource_id, parsed_url=parsed_url
+                id=resource_id
             )
         else:
             raise UnsupportedUrlError(f"不支持的资源类型: {resource_type}")
@@ -52,7 +52,7 @@ class ParserService:
     async def parse(
         cls, url: str
     ) -> Union[SongInfo]:
-        """解析Bilibili URL，返回相应的信息模型"""
+        """解析网易云 URL，返回相应的信息模型"""
         original_url = url.strip()
         logger.debug(f"开始解析URL: {original_url}", "网易云解析")
 

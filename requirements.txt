@@ -19,5 +19,3 @@ nonebot-plugin-session>=0.2.0
 nonebot-plugin-uninfo>=0.1.0
 
 pretty-errors>=1.2.25
-
-pycryptodome>=3.23.0
