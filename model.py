@@ -23,3 +23,15 @@ class AlbumInfo(BaseModel):
     commentCount: int  # 评论数
     shareCount: int    # 分享数
     songs: list        # 歌曲列表信息
+
+class UserInfo(BaseModel):
+    id: str            # id
+    name: str          # 用户名
+    createTime: int    # 注册时间
+    avatarUrl: str     # 头像
+    birthday: int      # 出生日期
+    signature: str     # 签名
+    followeds: int     # 关注
+    follows: int       # 粉丝
+    eventCount: int    # 动态数量
+    playlistCount: int # 歌单数量

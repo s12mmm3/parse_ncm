@@ -2,7 +2,7 @@ from typing import Union
 
 from zhenxun.services.log import logger
 
-from ..model import SongInfo, AlbumInfo
+from ..model import SongInfo, AlbumInfo, UserInfo
 from ..services.api_service import NcmApiService
 from ..services.network_service import NetworkService
 from ..utils.exceptions import UrlParseError, UnsupportedUrlError, ShortUrlError
@@ -34,7 +34,7 @@ class ParserService:
     @staticmethod
     async def fetch_resource_info(
         resource_type: ResourceType, resource_id: str, parsed_url: str
-    ) -> Union[SongInfo, AlbumInfo]:
+    ) -> Union[SongInfo, AlbumInfo, UserInfo]:
         """根据资源类型和ID获取详细信息"""
         logger.debug(
             f"获取资源信息: 类型={resource_type.name}, ID={resource_id}",
@@ -49,13 +49,17 @@ class ParserService:
             return await NcmApiService.get_album_info(
                 id=resource_id
             )
+        elif resource_type == ResourceType.USER:
+            return await NcmApiService.get_user_info(
+                id=resource_id
+            )
         else:
             raise UnsupportedUrlError(f"不支持的资源类型: {resource_type}")
 
     @classmethod
     async def parse(
         cls, url: str
-    ) -> Union[SongInfo, AlbumInfo]:
+    ) -> Union[SongInfo, AlbumInfo, UserInfo]:
         """解析网易云 URL，返回相应的信息模型"""
         original_url = url.strip()
         logger.debug(f"开始解析URL: {original_url}", "网易云解析")

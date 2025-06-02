@@ -10,7 +10,7 @@ from nonebot_plugin_alconna import Image, Text, UniMsg
 
 from zhenxun.services.log import logger
 
-from ..model import SongInfo, AlbumInfo
+from ..model import SongInfo, AlbumInfo, UserInfo
 from ..config import base_config, IMAGE_CACHE_DIR
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
@@ -167,6 +167,33 @@ class MessageBuilder:
         text_content += ("...\n" if len(info.songs) > 10 else "")
 
         text_content += f"https://music.163.com/#/album?id={info.id}"
+        segments.append(Text(text_content))
+
+        return UniMsg(segments)
+
+    @staticmethod
+    async def build_user_message(info: UserInfo) -> UniMsg:
+        """构建用户信息消息"""
+        segments = []
+
+        picUrl = info.avatarUrl
+        if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
+            file_name = f"ncm_song_cover_{info.id}.jpg"
+            cover_path = IMAGE_CACHE_DIR / file_name
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
+                segments.append(Image(path=cover_path))
+
+        text_content = (
+            f"用户名: {info.name}\n"
+            f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday)} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime)}\n"
+            f"签名: {info.signature}\n"
+            # f"id: {info.id}\n"
+
+            f"动态数量: {info.eventCount} | 歌单数量: {info.playlistCount}\n"
+            f"关注: {info.follows} | 粉丝: {info.followeds}\n"
+
+            f"https://music.163.com/#/user/home?id={info.id}"
+        )
         segments.append(Text(text_content))
 
         return UniMsg(segments)

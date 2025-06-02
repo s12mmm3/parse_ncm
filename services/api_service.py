@@ -8,7 +8,7 @@ import requests
 from zhenxun.services.log import logger
 
 from ..model import (
-    SongInfo, AlbumInfo,
+    SongInfo, AlbumInfo, UserInfo,
 )
 from ..utils.exceptions import (
     NcmResponseError,
@@ -62,6 +62,25 @@ class NcmApiService:
         )
 
         return album_model
+
+    @staticmethod
+    def _map_user_info_to_model(info: Dict[str, Any]) -> UserInfo:
+        """将API返回的用户信息映射到UserInfo模型"""
+        profile = dict(info["profile"])
+        user_model = UserInfo(
+            id = str(profile["userId"]),
+            name = str(profile["nickname"]),
+            createTime = int(profile["createTime"]),
+            avatarUrl = str(profile["avatarUrl"]),
+            birthday = int(profile["birthday"]),
+            signature = str(profile["signature"]),
+            followeds = int(profile["followeds"]),
+            follows = int(profile["follows"]),
+            eventCount = int(profile["eventCount"]),
+            playlistCount = int(profile["playlistCount"]),
+        )
+
+        return user_model
     
 
     @staticmethod
@@ -116,6 +135,13 @@ class NcmApiService:
         return { **ret0, **ret1, }
 
     @staticmethod
+    async def user_detail(id: str):
+        # 用户详情
+        data0 = { }
+        ret0 = dict((await NcmApiService.request(f"/api/v1/user/detail/{id}", data0)))
+        return { **ret0, }
+
+    @staticmethod
     async def get_song_info(id: str) -> SongInfo:
         """获取歌曲信息"""
         logger.debug(f"获取歌曲信息: {id}", "网易云解析")
@@ -155,6 +181,28 @@ class NcmApiService:
             logger.error(f"获取专辑信息失败 ({id}): {e}", "网易云解析")
             raise NcmResponseError(
                 f"获取专辑信息意外错误 ({id}): {e}",
+                cause=e,
+                context={"id": id},
+            )
+
+    @staticmethod
+    async def get_user_info(id: str) -> UserInfo:
+        """获取用户信息"""
+        logger.debug(f"获取用户信息: {id}", "网易云解析")
+
+        try:
+            info = (await NcmApiService.user_detail(id))
+
+            logger.debug(f"创建UserInfo模型: {id}", "网易云解析")
+            model = NcmApiService._map_user_info_to_model(info)
+
+            logger.debug(f"用户信息获取成功: {model.name}", "网易云解析")
+            return model
+
+        except Exception as e:
+            logger.error(f"获取用户信息失败 ({id}): {e}", "网易云解析")
+            raise NcmResponseError(
+                f"获取用户信息意外错误 ({id}): {e}",
                 cause=e,
                 context={"id": id},
             )

@@ -31,7 +31,7 @@ from .utils.exceptions import (
     NcmResponseError,
     ScreenshotError,
 )
-from .model import SongInfo, AlbumInfo
+from .model import SongInfo, AlbumInfo, UserInfo
 from .utils.url_parser import UrlParserRegistry, extract_ncm_url_from_message
 
 __plugin_meta__ = PluginMetadata(
@@ -95,7 +95,7 @@ async def _(
     logger.debug(f"Handler received message: {message}", "网易云解析")
 
     parsed_content: Union[
-        SongInfo, AlbumInfo, None
+        SongInfo, AlbumInfo, UserInfo, None
     ] = None
 
     target_url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
@@ -108,7 +108,7 @@ async def _(
         logger.info(f"开始解析URL: {target_url}", "网易云解析", session=session)
 
         parsed_content: Union[
-            SongInfo, AlbumInfo, None
+            SongInfo, AlbumInfo, UserInfo, None
         ] = await ParserService.parse(target_url)
         logger.debug(f"解析结果类型: {type(parsed_content).__name__}", "网易云解析")
 
@@ -159,6 +159,8 @@ async def _(
                 final_message = await MessageBuilder.build_song_message(parsed_content)
             elif isinstance(parsed_content, AlbumInfo):
                 final_message = await MessageBuilder.build_album_message(parsed_content)
+            elif isinstance(parsed_content, UserInfo):
+                final_message = await MessageBuilder.build_user_message(parsed_content)
             else:
                 logger.warning(
                     f"内容类型不支持或已禁用: {type(parsed_content).__name__}",
