@@ -150,11 +150,63 @@ def extract_url_from_text(text: str) -> Optional[str]:
     return common_extract_url(text)
 
 
+def extract_ncm_url_from_miniprogram(raw_str: str) -> Optional[str]:
+    """从小程序消息提取网易云URL"""
+    logger.debug(f"开始解析小程序消息，原始数据长度: {len(raw_str)}")
+
+    try:
+        data = json.loads(raw_str)
+
+        excluded_apps = [
+            "com.tencent.qun.invite",
+            "com.tencent.qqav.groupvideo",
+            "com.tencent.mobileqq.reading",
+            "com.tencent.weather",
+        ]
+
+        app_name = data.get("app") or data.get("meta", {}).get("detail_1", {}).get(
+            "appid"
+        )
+        if app_name in excluded_apps:
+            logger.debug(f"小程序 app '{app_name}' 在排除列表，跳过", "网易云解析")
+            return None
+
+        view_data = data.get("view", "")
+        meta_data = data.get("meta", {})
+        detail_data = meta_data.get(view_data, {})
+
+        jump_url = (detail_data.get("jumpUrl")
+            or detail_data.get("musicUrl")
+        )
+
+        if jump_url and isinstance(jump_url, str):
+            if "music.163.com" in jump_url or "163cn.tv" in jump_url:
+                logger.info(f"从小程序JSON数据提取到网易云链接: {jump_url}")
+                return jump_url
+
+    except Exception as e:
+        logger.debug(f"解析小程序JSON失败: {e}")
+
+    return None
+
+
 def extract_ncm_url_from_message(
     message, check_hyper: bool = True
 ) -> Optional[str]:
     """从消息提取网易云URL"""
     target_url = None
+
+    if check_hyper:
+        for seg in message:
+            if isinstance(seg, Hyper) and seg.raw:
+                try:
+                    extracted_url = extract_ncm_url_from_miniprogram(seg.raw)
+                    if extracted_url:
+                        target_url = extracted_url
+                        logger.debug(f"从Hyper段提取到网易云链接: {target_url}")
+                        break
+                except Exception as e:
+                    logger.debug(f"解析Hyper段失败: {e}")
 
     if not target_url:
         plain_text = message.extract_plain_text().strip()
@@ -185,6 +237,15 @@ async def extract_ncm_url_from_reply(reply: Optional[UniMsg]) -> Optional[str]:
         return None
 
     target_url = None
+    
+    for seg in reply.msg:
+        if isinstance(seg, Hyper) and seg.raw:
+            logger.debug(f"处理回复消息的 Hyper 段，raw 长度: {len(seg.raw)}")
+            extracted_url = extract_ncm_url_from_miniprogram(seg.raw)
+            if extracted_url:
+                target_url = extracted_url
+                logger.info(f"从回复消息提取到网易云链接: {target_url}")
+                break
 
     if not target_url:
         patterns = {
@@ -387,6 +448,14 @@ async def extract_bilibili_url_from_event(bot: Bot, event: Event) -> Optional[st
 
     try:
         current_message = event.get_message()
+
+        for seg in current_message:
+            if isinstance(seg, Hyper) and seg.raw:
+                extracted_url = await extract_ncm_url_from_miniprogram(seg.raw)
+                if extracted_url:
+                    target_url = extracted_url
+                    logger.info(f"从当前消息提取到网易云链接: {target_url}")
+                    return target_url
 
         target_url = extract_ncm_url_from_message(current_message)
         if target_url:
