@@ -50,3 +50,14 @@ class PlaylistInfo(BaseModel):
     creator: dict      # 创建者
     tracks: list       # 歌曲列表信息（不全）
     trackIds: list     # 歌曲id列表
+
+class ArtistInfo(BaseModel):
+    id: str            # id
+    name: str          # 歌手名
+    picUrl: str        # 头像
+    alias: list        # 别名
+    briefDesc: str     # 详情
+    musicSize: int     # 歌曲数
+    albumSize: int     # 专辑数
+    mvSize: int        # MV数
+    hotSongs: list     # 热门歌曲

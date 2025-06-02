@@ -31,7 +31,7 @@ from .utils.exceptions import (
     NcmResponseError,
     ScreenshotError,
 )
-from .model import SongInfo, AlbumInfo, UserInfo, PlaylistInfo
+from .model import ArtistInfo, SongInfo, AlbumInfo, UserInfo, PlaylistInfo
 from .utils.url_parser import UrlParserRegistry, extract_ncm_url_from_message
 
 __plugin_meta__ = PluginMetadata(
@@ -40,7 +40,7 @@ __plugin_meta__ = PluginMetadata(
     usage="""
     插件功能：
     1. 被动解析：自动监听消息中的网易云链接，并发送解析结果。
-       - 支持歌曲、专辑。
+       - 支持歌曲、专辑、用户、歌单、歌手。
        - 支持短链(163cn.tv)。
        - 开启方式：
          方式一：使用命令「开启群被动网易云解析」或「关闭群被动网易云解析」
@@ -95,7 +95,7 @@ async def _(
     logger.debug(f"Handler received message: {message}", "网易云解析")
 
     parsed_content: Union[
-        SongInfo, AlbumInfo, UserInfo, PlaylistInfo, None
+        SongInfo, AlbumInfo, UserInfo, PlaylistInfo, ArtistInfo, None
     ] = None
 
     target_url = extract_ncm_url_from_message(message, check_hyper=check_hyper)
@@ -108,7 +108,7 @@ async def _(
         logger.info(f"开始解析URL: {target_url}", "网易云解析", session=session)
 
         parsed_content: Union[
-            SongInfo, AlbumInfo, UserInfo, PlaylistInfo, None
+            SongInfo, AlbumInfo, UserInfo, PlaylistInfo, ArtistInfo, None
         ] = await ParserService.parse(target_url)
         logger.debug(f"解析结果类型: {type(parsed_content).__name__}", "网易云解析")
 
@@ -163,6 +163,8 @@ async def _(
                 final_message = await MessageBuilder.build_user_message(parsed_content)
             elif isinstance(parsed_content, PlaylistInfo):
                 final_message = await MessageBuilder.build_playlist_message(parsed_content)
+            elif isinstance(parsed_content, ArtistInfo):
+                final_message = await MessageBuilder.build_artist_message(parsed_content)
             else:
                 logger.warning(
                     f"内容类型不支持或已禁用: {type(parsed_content).__name__}",

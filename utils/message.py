@@ -10,7 +10,7 @@ from nonebot_plugin_alconna import Image, Text, UniMsg
 
 from zhenxun.services.log import logger
 
-from ..model import PlaylistInfo, SongInfo, AlbumInfo, UserInfo
+from ..model import ArtistInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo
 from ..config import base_config, IMAGE_CACHE_DIR
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
@@ -126,12 +126,19 @@ class MessageBuilder:
             # f"id: {info.id}\n"
 
             f"评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
-
-            f"歌词上传者: {info.lyricUser.get('nickname', '')} | 过审时间: {MessageBuilder.toLocaleDateString(info.lyricUser.get('uptime', 0)) if info.lyricUser.get('uptime') else ''}\n"
-            f"翻译上传者: {info.transUser.get('nickname', '')} | 过审时间: {MessageBuilder.toLocaleDateString(info.transUser.get('uptime', 0)) if info.transUser.get('uptime') else ''}\n"
-
-            f"https://music.163.com/#/song?id={info.id}"
         )
+        lyricNickname = f"歌词上传者: {info.lyricUser.get('nickname', '')}"
+        lyricUptime = f"过审时间: {MessageBuilder.toLocaleDateString(info.lyricUser.get('uptime', 0)) if info.lyricUser.get('uptime') else ''}"
+        transNickname = f"翻译上传者: {info.transUser.get('nickname', '')}"
+        transUptime = f"过审时间: {MessageBuilder.toLocaleDateString(info.transUser.get('uptime', 0)) if info.transUser.get('uptime') else ''}"
+
+        if True:
+            text_content += f"{lyricNickname} | {transNickname}\n"
+        else:
+            text_content += f"{lyricNickname} | {lyricUptime}\n"
+            text_content += f"{transNickname} | {transUptime}\n"
+
+        text_content += f"https://music.163.com/#/song?id={info.id}"
         segments.append(Text(text_content))
 
         return UniMsg(segments)
@@ -143,7 +150,7 @@ class MessageBuilder:
 
         picUrl = info.picUrl
         if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
-            file_name = f"ncm_song_cover_{info.id}.jpg"
+            file_name = f"ncm_album_cover_{info.id}.jpg"
             cover_path = IMAGE_CACHE_DIR / file_name
             if await ImageHelper.download_image(f"{picUrl}", cover_path):
                 segments.append(Image(path=cover_path))
@@ -178,7 +185,7 @@ class MessageBuilder:
 
         picUrl = info.avatarUrl
         if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
-            file_name = f"ncm_song_cover_{info.id}.jpg"
+            file_name = f"ncm_user_cover_{info.id}.jpg"
             cover_path = IMAGE_CACHE_DIR / file_name
             if await ImageHelper.download_image(f"{picUrl}", cover_path):
                 segments.append(Image(path=cover_path))
@@ -205,7 +212,7 @@ class MessageBuilder:
 
         picUrl = info.coverImgUrl
         if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
-            file_name = f"ncm_song_cover_{info.id}.jpg"
+            file_name = f"ncm_playlist_cover_{info.id}.jpg"
             cover_path = IMAGE_CACHE_DIR / file_name
             if await ImageHelper.download_image(f"{picUrl}", cover_path):
                 segments.append(Image(path=cover_path))
@@ -229,6 +236,39 @@ class MessageBuilder:
         text_content += ("...\n" if len(info.trackIds) > 10 else "")
 
         text_content += f"https://music.163.com/#/playlist?id={info.id}"
+        segments.append(Text(text_content))
+
+        return UniMsg(segments)
+
+    @staticmethod
+    async def build_artist_message(info: ArtistInfo) -> UniMsg:
+        """构建歌手信息消息"""
+        segments = []
+
+        picUrl = info.picUrl
+        if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
+            file_name = f"ncm_artist_cover_{info.id}.jpg"
+            cover_path = IMAGE_CACHE_DIR / file_name
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
+                segments.append(Image(path=cover_path))
+
+        text_content = (
+            f"歌手名: {info.name}\n"
+            f"别名: {' / '.join(info.alias)}\n"
+            f"详情: {info.briefDesc}\n"
+            f"歌曲数: {info.musicSize} | 专辑数: {info.albumSize} | MV数: {info.mvSize}\n"
+            # f"id: {info.id}\n"
+        )
+
+        text_content += "\n"
+        text_content += f"热门歌曲:\n"
+        for idx, song in enumerate(info.hotSongs[:SONGCOUNTLIMIT], 1):
+            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
+            text_content += song_info
+        
+        text_content += ("...\n" if len(info.hotSongs) > 10 else "")
+
+        text_content += f"https://music.163.com/#/artist?id={info.id}"
         segments.append(Text(text_content))
 
         return UniMsg(segments)

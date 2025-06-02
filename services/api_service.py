@@ -8,7 +8,7 @@ import requests
 from zhenxun.services.log import logger
 
 from ..model import (
-    PlaylistInfo, SongInfo, AlbumInfo, UserInfo,
+    ArtistInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo,
 )
 from ..utils.exceptions import (
     NcmResponseError,
@@ -84,7 +84,7 @@ class NcmApiService:
 
     @staticmethod
     def _map_playlist_info_to_model(info: Dict[str, Any]) -> PlaylistInfo:
-        """将API返回的专辑信息映射到PlaylistInfo模型"""
+        """将API返回的歌单信息映射到PlaylistInfo模型"""
         playlist = dict(info["playlist"])
         playlist_model = PlaylistInfo(
             id = str(playlist["id"]),
@@ -104,6 +104,24 @@ class NcmApiService:
         )
 
         return playlist_model
+
+    @staticmethod
+    def _map_artist_info_to_model(info: Dict[str, Any]) -> ArtistInfo:
+        """将API返回的歌手信息映射到ArtistInfo模型"""
+        artist = dict(info["artist"])
+        artist_model = ArtistInfo(
+            id = str(artist["id"]),
+            name = str(artist["name"]),
+            picUrl = str(artist["picUrl"]),
+            alias = list(artist["alias"]),
+            briefDesc = str(artist["briefDesc"]),
+            musicSize = int(artist["musicSize"]),
+            albumSize = int(artist["albumSize"]),
+            mvSize = int(artist["mvSize"]),
+            hotSongs = list(info["hotSongs"]),
+        )
+
+        return artist_model
     
 
     @staticmethod
@@ -173,6 +191,13 @@ class NcmApiService:
             "s": "8"
         }
         ret0 = dict((await NcmApiService.request(f"/api/v6/playlist/detail", data0)))
+        return { **ret0, }
+
+    @staticmethod
+    async def artist_detail(id: str):
+        # 歌手详情
+        data0 = { }
+        ret0 = dict((await NcmApiService.request(f"/api/v1/artist/{id}", data0)))
         return { **ret0, }
 
     @staticmethod
@@ -259,6 +284,28 @@ class NcmApiService:
             logger.error(f"获取歌单信息失败 ({id}): {e}", "网易云解析")
             raise NcmResponseError(
                 f"获取歌单信息意外错误 ({id}): {e}",
+                cause=e,
+                context={"id": id},
+            )
+
+    @staticmethod
+    async def get_artist_info(id: str) -> ArtistInfo:
+        """获取歌手信息"""
+        logger.debug(f"获取歌手信息: {id}", "网易云解析")
+
+        try:
+            info = (await NcmApiService.artist_detail(id))
+
+            logger.debug(f"创建ArtistInfo模型: {id}", "网易云解析")
+            model = NcmApiService._map_artist_info_to_model(info)
+
+            logger.debug(f"歌手信息获取成功: {model.name}", "网易云解析")
+            return model
+
+        except Exception as e:
+            logger.error(f"获取歌手信息失败 ({id}): {e}", "网易云解析")
+            raise NcmResponseError(
+                f"获取歌手信息意外错误 ({id}): {e}",
                 cause=e,
                 context={"id": id},
             )
