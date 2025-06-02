@@ -119,6 +119,7 @@ class MessageBuilder:
 
         text_content = (
             f"歌名: {info.name}\n"
+            f"别名: {' / '.join(info.tns + info.alia)}\n"
             f"专辑: {info.al['name']}\n"
             f"时长: {MessageBuilder.convertTimeToTag(info.dt, 3, False)}\n"
             f"发布时间: {MessageBuilder.toLocaleDateString(info.publishTime)}\n"
@@ -168,10 +169,17 @@ class MessageBuilder:
         text_content += "\n"
         text_content += f"共{len(info.songs)}首曲子\n"
         for idx, song in enumerate(info.songs[:SONGCOUNTLIMIT], 1):
-            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
+            # 显示歌曲翻译、别名
+            alia = list(song.get("tns", {})) + list(song.get("alia", {}))
+            alia_text = f"({' / '.join(alia)})" if alia else ""
+            song_info = "{idx}. 《{name}》{alia_text} - {artist}\n".format(idx = idx,
+                                                            name = song['name'],
+                                                            alia_text = alia_text,
+                                                            artist = MessageBuilder.get_artist_names(list(song['ar']))
+                                                            )
             text_content += song_info
         
-        text_content += ("...\n" if len(info.songs) > 10 else "")
+        text_content += ("...\n" if len(info.songs) > SONGCOUNTLIMIT else "")
 
         text_content += f"https://music.163.com/#/album?id={info.id}"
         segments.append(Text(text_content))
@@ -192,7 +200,7 @@ class MessageBuilder:
 
         text_content = (
             f"用户名: {info.name}\n"
-            f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday if info.birthday > 0 else 0)} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime if info.createTime > 0 else 0)}\n"
+            f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday) if info.birthday > 0 else ''} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime) if info.createTime > 0 else ''}\n"
             f"签名: {info.signature}\n"
             # f"id: {info.id}\n"
 
@@ -230,10 +238,17 @@ class MessageBuilder:
         text_content += "\n"
         text_content += f"共{len(info.trackIds)}首曲子\n" # 这里用的是trackIds
         for idx, song in enumerate(info.tracks[:SONGCOUNTLIMIT], 1):
-            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
+            # 显示歌曲翻译、别名
+            alia = list(song.get("tns", {})) + list(song.get("alia", {}))
+            alia_text = f"({' / '.join(alia)})" if alia else ""
+            song_info = "{idx}. 《{name}》{alia_text} - {artist}\n".format(idx = idx,
+                                                            name = song['name'],
+                                                            alia_text = alia_text,
+                                                            artist = MessageBuilder.get_artist_names(list(song['ar']))
+                                                            )
             text_content += song_info
         
-        text_content += ("...\n" if len(info.trackIds) > 10 else "")
+        text_content += ("...\n" if len(info.trackIds) > SONGCOUNTLIMIT else "")
 
         text_content += f"https://music.163.com/#/playlist?id={info.id}"
         segments.append(Text(text_content))
@@ -263,10 +278,17 @@ class MessageBuilder:
         text_content += "\n"
         text_content += f"热门歌曲:\n"
         for idx, song in enumerate(info.hotSongs[:SONGCOUNTLIMIT], 1):
-            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
+            # 显示歌曲翻译、别名
+            alia = list(song.get("tns", {})) + list(song.get("alia", {}))
+            alia_text = f"({' / '.join(alia)})" if alia else ""
+            song_info = "{idx}. 《{name}》{alia_text} - {artist}\n".format(idx = idx,
+                                                            name = song['name'],
+                                                            alia_text = alia_text,
+                                                            artist = MessageBuilder.get_artist_names(list(song['ar']))
+                                                            )
             text_content += song_info
         
-        text_content += ("...\n" if len(info.hotSongs) > 10 else "")
+        text_content += ("...\n" if len(info.hotSongs) > SONGCOUNTLIMIT else "")
 
         text_content += f"https://music.163.com/#/artist?id={info.id}"
         segments.append(Text(text_content))

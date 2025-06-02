@@ -12,6 +12,8 @@ class SongInfo(BaseModel):
     shareCount: int    # 分享数
     lyricUser: dict    # 歌词上传者
     transUser: dict    # 翻译上传者
+    tns: list          # 翻译名
+    alia: list         # 副标题
 
 class AlbumInfo(BaseModel):
     id: str            # id

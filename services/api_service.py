@@ -40,6 +40,8 @@ class NcmApiService:
             shareCount = int(info["shareCount"]),
             lyricUser = dict(info.get("lyricUser", {})),
             transUser = dict(info.get("transUser", {})),
+            tns = list(info.get("tns", {})),
+            alia = list(info.get("alia", {})),
         )
 
         return song_model
