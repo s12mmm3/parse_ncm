@@ -106,6 +106,16 @@ class UserParser(RegexUrlParser):
         re.IGNORECASE          # 忽略大小写
     )
 
+class PlaylistParser(RegexUrlParser):
+    """网易云音乐歌单链接解析器"""
+    
+    PRIORITY = 10
+    RESOURCE_TYPE = ResourceType.PLAYLIST
+    PATTERN = re.compile(
+        r"music\.163\.com.*/playlist(?:\?id=|/)(\d+)",
+        re.IGNORECASE          # 忽略大小写
+    )
+
 class ShortUrlParser(RegexUrlParser):
     """网易云短链接解析器"""
 
@@ -152,6 +162,7 @@ class UrlParserRegistry:
 UrlParserRegistry.register(SongParser)
 UrlParserRegistry.register(AlbumParser)
 UrlParserRegistry.register(UserParser)
+UrlParserRegistry.register(PlaylistParser)
 UrlParserRegistry.register(ShortUrlParser)
 
 def extract_url_from_text(text: str) -> Optional[str]:

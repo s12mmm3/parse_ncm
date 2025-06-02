@@ -31,7 +31,22 @@ class UserInfo(BaseModel):
     avatarUrl: str     # 头像
     birthday: int      # 出生日期
     signature: str     # 签名
-    followeds: int     # 关注
-    follows: int       # 粉丝
+    followeds: int     # 粉丝
+    follows: int       # 关注
     eventCount: int    # 动态数量
     playlistCount: int # 歌单数量
+
+class PlaylistInfo(BaseModel):
+    id: str            # id
+    name: str          # 歌单名
+    createTime: int    # 创建时间
+    coverImgUrl: str   # 封面
+    playCount: int     # 播放量
+    subscribedCount: int # 收藏量
+    description: str   # 简介
+    tags: list         # 标签
+    commentCount: int  # 评论数
+    shareCount: int    # 分享数
+    creator: dict      # 创建者
+    tracks: list       # 歌曲列表信息（不全）
+    trackIds: list     # 歌曲id列表

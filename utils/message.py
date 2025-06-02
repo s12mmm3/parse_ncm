@@ -10,7 +10,7 @@ from nonebot_plugin_alconna import Image, Text, UniMsg
 
 from zhenxun.services.log import logger
 
-from ..model import SongInfo, AlbumInfo, UserInfo
+from ..model import PlaylistInfo, SongInfo, AlbumInfo, UserInfo
 from ..config import base_config, IMAGE_CACHE_DIR
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
@@ -161,7 +161,7 @@ class MessageBuilder:
         text_content += "\n"
         text_content += f"共{len(info.songs)}首曲子\n"
         for idx, song in enumerate(info.songs[:SONGCOUNTLIMIT], 1):
-            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(info.artists))
+            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
             text_content += song_info
         
         text_content += ("...\n" if len(info.songs) > 10 else "")
@@ -194,6 +194,41 @@ class MessageBuilder:
 
             f"https://music.163.com/#/user/home?id={info.id}"
         )
+        segments.append(Text(text_content))
+
+        return UniMsg(segments)
+
+    @staticmethod
+    async def build_playlist_message(info: PlaylistInfo) -> UniMsg:
+        """构建歌单信息消息"""
+        segments = []
+
+        picUrl = info.coverImgUrl
+        if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
+            file_name = f"ncm_song_cover_{info.id}.jpg"
+            cover_path = IMAGE_CACHE_DIR / file_name
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
+                segments.append(Image(path=cover_path))
+
+        text_content = (
+            f"歌单名: {info.name}\n"
+            f"创建者: {info.creator['nickname']}\n"
+            f"创建时间: {MessageBuilder.toLocaleDateString(info.createTime)}\n"
+            f"简介: {info.description}\n"
+            f"播放量: {info.playCount} | 收藏量: {info.subscribedCount} | 评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
+            f"标签: {' / '.join(info.tags)}\n"
+            # f"id: {info.id}\n"
+        )
+
+        text_content += "\n"
+        text_content += f"共{len(info.trackIds)}首曲子\n" # 这里用的是trackIds
+        for idx, song in enumerate(info.tracks[:SONGCOUNTLIMIT], 1):
+            song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(list(song['ar'])))
+            text_content += song_info
+        
+        text_content += ("...\n" if len(info.trackIds) > 10 else "")
+
+        text_content += f"https://music.163.com/#/playlist?id={info.id}"
         segments.append(Text(text_content))
 
         return UniMsg(segments)
