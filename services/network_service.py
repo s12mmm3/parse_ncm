@@ -1,8 +1,6 @@
 import asyncio
 import time
-import urllib.parse
 import functools
-import traceback
 from typing import Dict, Any, Optional, Callable, TypeVar, Awaitable, Union, List, Type
 import aiohttp
 from collections import defaultdict
@@ -12,9 +10,7 @@ from zhenxun.services.log import logger
 from ..config import HTTP_TIMEOUT, HTTP_CONNECT_TIMEOUT
 from ..utils.exceptions import (
     NcmRequestError,
-    NcmResponseError,
     RateLimitError,
-    NetworkError,
     NcmBaseException,
 )
 from ..utils.headers import get_ncm_headers
@@ -36,82 +32,6 @@ def _log_exception(
         log_func(f"{error_msg}: {e}", "网易云解析")
     else:
         log_func(f"{error_msg}: {e}", "网易云解析")
-
-
-def format_exception(e: Exception) -> str:
-    """格式化异常信息"""
-    tb = traceback.format_exception(type(e), e, e.__traceback__)
-    tb_simplified = tb[-3:]
-    return f"{type(e).__name__}: {str(e)}\n{''.join(tb_simplified)}"
-
-
-def network_retry_condition(exception: Exception, attempt: int) -> bool:
-    """网络错误重试条件"""
-    network_error_types = {
-        "ConnectionError",
-        "Timeout",
-        "TimeoutError",
-        "ConnectTimeout",
-        "ReadTimeout",
-        "ConnectionRefusedError",
-        "ConnectionResetError",
-        "HTTPError",
-        "SSLError",
-        "ProxyError",
-        "RequestError",
-        "ClientError",
-    }
-
-    exception_type = type(exception).__name__
-    return any(error_type in exception_type for error_type in network_error_types)
-
-
-def transient_retry_condition(exception: Exception, attempt: int) -> bool:
-    """临时错误重试条件"""
-    if network_retry_condition(exception, attempt):
-        return True
-
-    transient_keywords = [
-        "timeout",
-        "timed out",
-        "temporary",
-        "temporarily",
-        "retry",
-        "rate limit",
-        "ratelimit",
-        "throttle",
-        "throttling",
-        "overload",
-        "busy",
-        "unavailable",
-        "maintenance",
-        "503",
-        "502",
-        "500",
-        "429",
-    ]
-
-    error_message = str(exception).lower()
-    return any(keyword in error_message for keyword in transient_keywords)
-
-
-def calculate_next_wait_time(
-    attempt: int,
-    base_wait: float = 1.0,
-    max_wait: float = 60.0,
-    exponential: bool = True,
-    jitter: bool = True,
-) -> float:
-    """计算重试等待时间"""
-    from ..utils.common import calculate_retry_wait_time
-
-    return calculate_retry_wait_time(
-        attempt=attempt,
-        base_delay=base_wait,
-        max_delay=max_wait,
-        exponential=exponential,
-        jitter=jitter,
-    )
 
 
 def handle_errors(
@@ -200,10 +120,6 @@ class RateLimiter:
     _domain_counters = defaultdict(int)
 
     _domain_rate_limits = {
-        "api.bilibili.com": 0.5,
-        "www.bilibili.com": 0.5,
-        "live.bilibili.com": 0.5,
-        "b23.tv": 1.0,
     }
 
     _DEFAULT_INTERVAL = 0.2
@@ -233,30 +149,6 @@ class RateLimiter:
 
         return wait_time
 
-    @classmethod
-    def get_domain_stats(cls) -> Dict[str, Dict[str, Any]]:
-        """获取域名请求统计"""
-        stats = {}
-        for domain, counter in cls._domain_counters.items():
-            last_time, interval = cls._domain_limits.get(
-                domain, (0, cls._DEFAULT_INTERVAL)
-            )
-            stats[domain] = {
-                "requests": counter,
-                "last_request": last_time,
-                "interval": interval,
-                "rate_limit": cls._domain_rate_limits.get(
-                    domain, cls._DEFAULT_INTERVAL
-                ),
-            }
-        return stats
-
-    @classmethod
-    def update_rate_limit(cls, domain: str, interval: float):
-        """更新域名请求间隔"""
-        cls._domain_rate_limits[domain] = interval
-        logger.debug(f"更新 {domain} 的请求间隔为 {interval}s", "网易云解析")
-
 
 class NetworkService:
     """网络请求服务，提供优化的请求方法"""
@@ -264,13 +156,6 @@ class NetworkService:
     _session: Optional[aiohttp.ClientSession] = None
 
     _session_lock = asyncio.Lock()
-
-    _DEFAULT_RETRY_CONFIG = {
-        "max_attempts": 3,
-        "min_wait": 1.0,
-        "max_wait": 10.0,
-        "multiplier": 2.0,
-    }
 
     @classmethod
     async def get_session(cls) -> aiohttp.ClientSession:
@@ -287,15 +172,6 @@ class NetworkService:
                 )
                 logger.debug("创建了新的HTTP会话", "网易云解析")
             return cls._session
-
-    @classmethod
-    async def close_session(cls):
-        """关闭HTTP会话"""
-        async with cls._session_lock:
-            if cls._session and not cls._session.closed:
-                await cls._session.close()
-                cls._session = None
-                logger.debug("关闭了HTTP会话", "网易云解析")
 
     @classmethod
     async def get(
@@ -378,117 +254,6 @@ class NetworkService:
 
     @classmethod
     @async_handle_errors(
-        error_msg="获取JSON数据失败",
-        exc_types=[
-            aiohttp.ClientError,
-            asyncio.TimeoutError,
-            NcmRequestError,
-            NcmResponseError,
-        ],
-        reraise=True,
-    )
-    async def get_json(
-        cls,
-        url: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
-        use_bilibili_headers: bool = True,
-        max_attempts: int = 3,
-    ) -> Dict[str, Any]:
-        """发送GET请求并解析JSON响应"""
-        if headers is None and use_bilibili_headers:
-            headers = get_ncm_headers()
-
-        request_context = {"url": url, "params": str(params) if params else None}
-
-        async with await cls.get(
-            url, params, headers, timeout, max_attempts=max_attempts
-        ) as response:
-            if response.status != 200:
-                raise NcmRequestError(
-                    f"HTTP状态码错误: {response.status}",
-                    context={"url": url, "status": response.status},
-                )
-
-            try:
-                return await response.json()
-            except aiohttp.ContentTypeError as e:
-                raise NcmResponseError(
-                    f"JSON解析失败: {e}",
-                    context=request_context,
-                ) from e
-
-    @classmethod
-    @async_handle_errors(
-        error_msg="获取文本数据失败",
-        exc_types=[aiohttp.ClientError, asyncio.TimeoutError, NcmRequestError],
-        reraise=True,
-    )
-    async def get_text(
-        cls,
-        url: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        timeout: Optional[float] = None,
-        max_attempts: int = 3,
-    ) -> str:
-        """发送GET请求并获取文本响应"""
-        async with await cls.get(
-            url, params, headers, timeout, max_attempts=max_attempts
-        ) as response:
-            if response.status != 200:
-                raise NcmRequestError(
-                    f"HTTP状态码错误: {response.status}",
-                    context={"url": url, "status": response.status},
-                )
-
-            return await response.text()
-
-    @staticmethod
-    @handle_errors(
-        error_msg="清理URL失败",
-        log_level="warning",
-        reraise=False,
-        default_return=lambda url: url,
-    )
-    def clean_bilibili_url(url: str) -> str:
-        return url
-        """清理网易云URL，移除不必要的参数"""
-        parsed_url = urllib.parse.urlparse(url)
-        query_params = urllib.parse.parse_qs(parsed_url.query)
-        keep_params = ["p"]
-
-        filtered_params = {k: v for k, v in query_params.items() if k in keep_params}
-
-        if "p" in filtered_params and filtered_params["p"][0] == "1":
-            filtered_params.pop("p")
-
-        new_query = (
-            urllib.parse.urlencode(filtered_params, doseq=True)
-            if filtered_params
-            else ""
-        )
-
-        netloc = parsed_url.netloc
-        if netloc.startswith("m."):
-            netloc = netloc.replace("m.", "www.", 1)
-
-        clean_url = urllib.parse.urlunparse(
-            (
-                parsed_url.scheme,
-                netloc,
-                parsed_url.path,
-                parsed_url.params,
-                new_query,
-                "",
-            )
-        )
-
-        return clean_url
-
-    @classmethod
-    @async_handle_errors(
         error_msg="解析短链接失败",
         exc_types=[aiohttp.ClientError, asyncio.TimeoutError, NcmRequestError],
         reraise=True,
@@ -502,69 +267,10 @@ class NetworkService:
             url, use_rate_limit=True, timeout=10, max_attempts=max_attempts
         ) as response:
             resolved_url = str(response.url)
-            clean_url = cls.clean_bilibili_url(resolved_url)
+            clean_url = resolved_url
 
             logger.debug(f"短链接 {url} 解析为 {resolved_url}", "网易云解析")
             if clean_url != resolved_url:
                 logger.debug(f"清理后的URL: {clean_url}", "网易云解析")
 
             return clean_url
-
-    @classmethod
-    async def with_retry(
-        cls,
-        func: Callable[[], Awaitable[T]],
-        retry_exceptions: tuple = (Exception,),
-        max_attempts: int = 3,
-        base_wait: float = 1.0,
-        exponential: bool = True,
-        jitter: bool = True,
-        retry_condition=None,
-    ) -> T:
-        """使用重试机制执行异步函数"""
-        if retry_condition is None:
-            retry_condition = transient_retry_condition
-
-        last_exception = None
-
-        for attempt in range(1, max_attempts + 1):
-            try:
-                return await func()
-            except retry_exceptions as e:
-                last_exception = e
-
-                is_last_attempt = attempt >= max_attempts
-
-                should_retry = not is_last_attempt and retry_condition(e, attempt)
-
-                if not should_retry:
-                    logger.error(
-                        f"操作失败 (尝试 {attempt}/{max_attempts}), 不再重试: {e}",
-                        "网易云解析",
-                    )
-                    break
-
-                from ..utils.common import calculate_retry_wait_time
-
-                wait_time = calculate_retry_wait_time(
-                    attempt=attempt,
-                    base_delay=base_wait,
-                    max_delay=30.0,
-                    exponential=exponential,
-                    jitter=jitter,
-                )
-
-                logger.debug(
-                    f"操作失败 (尝试 {attempt}/{max_attempts}), "
-                    f"等待 {wait_time:.1f}s 后重试: {e}",
-                    "网易云解析",
-                )
-
-                await asyncio.sleep(wait_time)
-
-        if last_exception:
-            if isinstance(last_exception, NetworkError):
-                last_exception.with_context(attempts=max_attempts)
-            raise last_exception
-
-        raise RuntimeError("Unexpected error in with_retry")

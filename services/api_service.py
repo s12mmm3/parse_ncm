@@ -92,15 +92,7 @@ class NcmApiService:
         ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
 
         data2 = {
-            "cp": "false",
             "id": id,
-            "kv": "0",
-            "lv": "0",
-            "rv": "0",
-            "tv": "0",
-            "yrv": "0",
-            "ytv": "0",
-            "yv": "0",
             }
 
         # 新版歌词

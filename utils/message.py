@@ -65,6 +65,8 @@ class ImageHelper:
             return None
 
 
+SONGCOUNTLIMIT = 10 # 限制打印的歌曲数量
+
 class MessageBuilder:
     """消息构建器"""
     @staticmethod
@@ -112,7 +114,7 @@ class MessageBuilder:
         if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
             file_name = f"ncm_song_cover_{info.id}.jpg"
             cover_path = IMAGE_CACHE_DIR / file_name
-            if await ImageHelper.download_image(f"{picUrl}?param=${400}y${400}", cover_path):
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
                 segments.append(Image(path=cover_path))
 
         text_content = (
@@ -123,13 +125,10 @@ class MessageBuilder:
             f"歌手: {MessageBuilder.get_artist_names(info.ar)}\n"
             # f"id: {info.id}\n"
 
-            f"评论数: {info.commentCount}\n"
-            f"分享数: {info.shareCount}\n"
+            f"评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
 
-            f"歌词上传者: {info.lyricUser.get('nickname', '')}\n"
-            f"歌词过审时间: {MessageBuilder.toLocaleDateString(info.lyricUser.get('uptime', 0)) if info.lyricUser.get('uptime') else ''}\n"
-            f"翻译上传者: {info.transUser.get('nickname', '')}\n"
-            f"翻译过审时间: {MessageBuilder.toLocaleDateString(info.transUser.get('uptime', 0)) if info.transUser.get('uptime') else ''}\n"
+            f"歌词上传者: {info.lyricUser.get('nickname', '')} | 过审时间: {MessageBuilder.toLocaleDateString(info.lyricUser.get('uptime', 0)) if info.lyricUser.get('uptime') else ''}\n"
+            f"翻译上传者: {info.transUser.get('nickname', '')} | 过审时间: {MessageBuilder.toLocaleDateString(info.transUser.get('uptime', 0)) if info.transUser.get('uptime') else ''}\n"
 
             f"https://music.163.com/#/song?id={info.id}"
         )
@@ -139,14 +138,14 @@ class MessageBuilder:
 
     @staticmethod
     async def build_album_message(info: AlbumInfo) -> UniMsg:
-        """构建歌曲信息消息"""
+        """构建专辑信息消息"""
         segments = []
 
         picUrl = info.picUrl
         if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
             file_name = f"ncm_song_cover_{info.id}.jpg"
             cover_path = IMAGE_CACHE_DIR / file_name
-            if await ImageHelper.download_image(f"{picUrl}?param=${400}y${400}", cover_path):
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
                 segments.append(Image(path=cover_path))
 
         text_content = (
@@ -156,15 +155,16 @@ class MessageBuilder:
             f"简介: {info.description}\n"
             # f"id: {info.id}\n"
 
-            f"评论数: {info.commentCount}\n"
-            f"分享数: {info.shareCount}\n"
+            f"评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
         )
 
         text_content += "\n"
         text_content += f"共{len(info.songs)}首曲子\n"
-        for idx, song in enumerate(info.songs, 1):
+        for idx, song in enumerate(info.songs[:SONGCOUNTLIMIT], 1):
             song_info = "{idx}. 《{name}》- {artist}\n".format(idx = idx, name = song['name'], artist = MessageBuilder.get_artist_names(info.artists))
             text_content += song_info
+        
+        text_content += ("...\n" if len(info.songs) > 10 else "")
 
         text_content += f"https://music.163.com/#/album?id={info.id}"
         segments.append(Text(text_content))
