@@ -55,6 +55,7 @@ class NcmApiService:
             transUser = dict(info.get("transUser", {})),
             tns = list(info.get("tns", {})),
             alia = list(info.get("alia", {})),
+            hotComments = list(info.get("hotComments", {})),
         )
 
         return song_model
@@ -74,6 +75,7 @@ class NcmApiService:
             commentCount = int(info["commentCount"]),
             shareCount = int(info["shareCount"]),
             songs = list(info["songs"]),
+            hotComments = list(info.get("hotComments", {})),
         )
 
         return album_model
@@ -116,6 +118,7 @@ class NcmApiService:
             creator = dict(playlist["creator"]),
             tracks = list(playlist["tracks"]),
             trackIds = list(playlist["trackIds"]),
+            hotComments = list(info.get("hotComments", {})),
         )
 
         return playlist_model
@@ -148,6 +151,25 @@ class NcmApiService:
         logger.info(f"URL: {url}, status_code: {response.status_code}, ", "网易云解析")
         data = json.loads(response.text)
         return data
+    
+    @staticmethod
+    async def get_commentInfo(id: str, resourceType: int):
+        # 简略评论信息
+        data = {
+            "fixliked": True,
+            "needupgradedinfo": True,
+            "resourceIds": json.dumps([ id ]),
+            "resourceType": resourceType
+        }
+        return dict((await NcmApiService.request("/api/resource/commentInfo/list", data))["data"][0])
+    
+    @staticmethod
+    async def comment_event(threadId: str):
+        # 具体评论信息
+        data = {
+            "limit": 60,
+            }
+        return dict((await NcmApiService.request(f"/api/v1/resource/comments/{threadId}", data)))
 
     @staticmethod
     async def song_detail(id: str):
@@ -156,39 +178,33 @@ class NcmApiService:
         data0 = { "c": c }
         ret0 = dict((await NcmApiService.request("/api/v3/song/detail", data0))["songs"][0])
 
-        # 歌曲评论信息
-        data1 = {
-            "fixliked": True,
-            "needupgradedinfo": True,
-            "resourceIds": json.dumps([ id ]),
-            "resourceType": 4
-        }
+        # 简略评论信息
+        ret1 = await NcmApiService.get_commentInfo(id = id, resourceType = 4)
 
-        ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
-
+        # 新版歌词
         data2 = {
             "id": id,
             }
-
-        # 新版歌词
         ret2 = dict((await NcmApiService.request("/api/song/lyric/v1", data2)))
-        return { **ret0, **ret1, **ret2 }
+        
+        # 具体评论信息
+        threadId = ret1.get("threadId", "")
+        ret3 = await NcmApiService.comment_event(threadId = threadId)
+        return { **ret0, **ret1, **ret2, **ret3, }
 
     @staticmethod
     async def album_detail(id: str):
         # 专辑详情
         data0 = { }
         ret0 = dict((await NcmApiService.request(f"/api/v1/album/{id}", data0)))
-        # 专辑评论信息
-        data1 = {
-            "fixliked": True,
-            "needupgradedinfo": True,
-            "resourceIds": json.dumps([ id ]),
-            "resourceType": 3
-        }
 
-        ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
-        return { **ret0, **ret1, }
+        # 简略评论信息
+        ret1 = await NcmApiService.get_commentInfo(id = id, resourceType = 3)
+
+        # 具体评论信息
+        threadId = ret1.get("threadId", "")
+        ret3 = await NcmApiService.comment_event(threadId = threadId)
+        return { **ret0, **ret1, **ret3, }
 
     @staticmethod
     async def user_detail(id: str):
@@ -206,7 +222,14 @@ class NcmApiService:
             "s": "8"
         }
         ret0 = dict((await NcmApiService.request(f"/api/v6/playlist/detail", data0)))
-        return { **ret0, }
+
+        # 简略评论信息
+        ret1 = await NcmApiService.get_commentInfo(id = id, resourceType = 0)
+
+        # 具体评论信息
+        threadId = ret1.get("threadId", "")
+        ret3 = await NcmApiService.comment_event(threadId = threadId)
+        return { **ret0, **ret1, **ret3, }
 
     @staticmethod
     async def artist_detail(id: str):

@@ -14,6 +14,7 @@ class SongInfo(BaseModel):
     transUser: dict    # 翻译上传者
     tns: list          # 翻译名
     alia: list         # 副标题
+    hotComments: list  # 热门评论
 
 class AlbumInfo(BaseModel):
     id: str            # id
@@ -25,6 +26,7 @@ class AlbumInfo(BaseModel):
     commentCount: int  # 评论数
     shareCount: int    # 分享数
     songs: list        # 歌曲列表信息
+    hotComments: list  # 热门评论
 
 class UserInfo(BaseModel):
     id: str            # id
@@ -52,6 +54,7 @@ class PlaylistInfo(BaseModel):
     creator: dict      # 创建者
     tracks: list       # 歌曲列表信息（不全）
     trackIds: list     # 歌曲id列表
+    hotComments: list  # 热门评论
 
 class ArtistInfo(BaseModel):
     id: str            # id
