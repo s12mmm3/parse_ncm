@@ -185,7 +185,7 @@ class MessageBuilder:
 
         text_content = (
             f"用户名: {info.name}\n"
-            f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday)} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime)}\n"
+            f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday if info.birthday > 0 else 0)} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime if info.createTime > 0 else 0)}\n"
             f"签名: {info.signature}\n"
             # f"id: {info.id}\n"
 

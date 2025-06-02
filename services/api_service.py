@@ -70,9 +70,9 @@ class NcmApiService:
         user_model = UserInfo(
             id = str(profile["userId"]),
             name = str(profile["nickname"]),
-            createTime = int(profile["createTime"]),
+            createTime = int(profile.get("createTime", 0)),
             avatarUrl = str(profile["avatarUrl"]),
-            birthday = int(profile["birthday"]),
+            birthday = int(profile.get("birthday", 0)),
             signature = str(profile["signature"]),
             followeds = int(profile["followeds"]),
             follows = int(profile["follows"]),

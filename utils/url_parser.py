@@ -102,9 +102,13 @@ class UserParser(RegexUrlParser):
     PRIORITY = 10
     RESOURCE_TYPE = ResourceType.USER
     PATTERN = re.compile(
-        r"music\.163\.com.*/user/home(?:\?id=|/)(\d+)",
+        r"music\.163\.com.*/user(?:/home|)\?id=(\d+)",
         re.IGNORECASE          # 忽略大小写
     )
+    """
+    https://music.163.com/#/user/home?id=1463586082
+    https://y.music.163.com/m/user?id=1463586082
+    """
 
 class PlaylistParser(RegexUrlParser):
     """网易云音乐歌单链接解析器"""
