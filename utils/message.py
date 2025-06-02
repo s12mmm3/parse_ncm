@@ -126,10 +126,10 @@ class MessageBuilder:
             f"评论数: {info.commentCount}\n"
             f"分享数: {info.shareCount}\n"
 
-            f"歌词上传者: {info.lyricUser['nickname']}\n"
-            f"歌词上传时间: {MessageBuilder.toLocaleDateString(info.lyricUser['uptime'])}\n"
-            f"翻译上传者: {info.transUser['nickname']}\n"
-            f"翻译上传时间: {MessageBuilder.toLocaleDateString(info.transUser['uptime'])}\n"
+            f"歌词上传者: {info.lyricUser.get('nickname', '')}\n"
+            f"歌词过审时间: {MessageBuilder.toLocaleDateString(info.lyricUser.get('uptime', 0)) if info.lyricUser.get('uptime') else ''}\n"
+            f"翻译上传者: {info.transUser.get('nickname', '')}\n"
+            f"翻译过审时间: {MessageBuilder.toLocaleDateString(info.transUser.get('uptime', 0)) if info.transUser.get('uptime') else ''}\n"
 
             f"https://music.163.com/#/song?id={info.id}"
         )
@@ -159,7 +159,7 @@ class MessageBuilder:
             f"评论数: {info.commentCount}\n"
             f"分享数: {info.shareCount}\n"
         )
-        
+
         text_content += "\n"
         text_content += f"共{len(info.songs)}首曲子\n"
         for idx, song in enumerate(info.songs, 1):

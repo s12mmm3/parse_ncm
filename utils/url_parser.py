@@ -77,23 +77,14 @@ class SongParser(RegexUrlParser):
     PRIORITY = 10
     RESOURCE_TYPE = ResourceType.SONG
     PATTERN = re.compile(
-        r"music\.163\.com.*/song\?id=(\d+)",
+        r"music\.163\.com.*/song(?:\?id=|/)(\d+)",
         re.IGNORECASE          # 忽略大小写
     )
-
-    # @classmethod
-    # def parse(cls, url: str) -> Tuple[ResourceType, str]:
-    #     """解析歌曲ID"""
-    #     match = cls.PATTERN.search(url)
-    #     if not match:
-    #         raise UrlParseError(f"无法解析歌曲ID: {url}")
-
-    #     id = match.group(1)
-
-    #     if id:
-    #         return cls.RESOURCE_TYPE, f"{id}"
-    #     else:
-    #         raise UrlParseError(f"无法从匹配中提取歌曲ID: {url}")
+    """
+    https://y.music.163.com/m/song?id=2709431534&uct2=Arr0WMm044%2BJ8enAgZ5KPw%3D%3D&fx-wechatnew=t1&fx-wxqd=c&fx-wordtest=&fx-listentest=t3&H5_DownloadVIPGift=&playerUIModeId=76001&PlayerStyles_SynchronousSharing=t3&dlt=0846&app_version=9.3.10&sc=wm&tn=
+    https://music.163.com/#/song?id=2708737458
+    https://music.163.com/#/song/2708737458
+    """
 
 class AlbumParser(RegexUrlParser):
     """网易云音乐专辑链接解析器"""
@@ -101,7 +92,7 @@ class AlbumParser(RegexUrlParser):
     PRIORITY = 10
     RESOURCE_TYPE = ResourceType.ALBUM
     PATTERN = re.compile(
-        r"music\.163\.com.*/album\?id=(\d+)",
+        r"music\.163\.com.*/album(?:\?id=|/)(\d+)",
         re.IGNORECASE          # 忽略大小写
     )
 

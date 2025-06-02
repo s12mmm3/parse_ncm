@@ -38,8 +38,8 @@ class NcmApiService:
             dt = int(info["dt"]),
             commentCount = int(info["commentCount"]),
             shareCount = int(info["shareCount"]),
-            lyricUser = dict(info["lyricUser"]),
-            transUser = dict(info["transUser"]),
+            lyricUser = dict(info.get("lyricUser", {})),
+            transUser = dict(info.get("transUser", {})),
         )
 
         return song_model
@@ -86,7 +86,7 @@ class NcmApiService:
             "fixliked": True,
             "needupgradedinfo": True,
             "resourceIds": json.dumps([ id ]),
-            "resourceType": 3
+            "resourceType": 4
         }
 
         ret1 = dict((await NcmApiService.request("/api/resource/commentInfo/list", data1))["data"][0])
