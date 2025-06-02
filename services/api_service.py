@@ -25,6 +25,19 @@ RETRYABLE_EXCEPTIONS = (
 
 class NcmApiService:
     """网易云API服务，负责获取歌曲、专辑等信息"""
+    @staticmethod
+    async def resolve_short_url(url: str) -> str:
+        """解析短链接"""
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
+
+        response = requests.get(url = url)
+        response.raise_for_status()
+        resolved_url = str(response.url)
+
+        logger.debug(f"短链接 {url} 解析为 {resolved_url}", "网易云解析")
+
+        return resolved_url
 
     @staticmethod
     def _map_song_info_to_model(info: Dict[str, Any]) -> SongInfo:

@@ -4,7 +4,6 @@ from zhenxun.services.log import logger
 
 from ..model import ArtistInfo, SongInfo, AlbumInfo, UserInfo, PlaylistInfo
 from ..services.api_service import NcmApiService
-from ..services.network_service import NetworkService
 from ..utils.exceptions import UrlParseError, UnsupportedUrlError, ShortUrlError
 from ..utils.url_parser import ResourceType, UrlParserRegistry
 
@@ -20,7 +19,7 @@ class ParserService:
         if "163cn.tv" in original_url:
             logger.debug(f"检测到163cn.tv短链接: {original_url}", "网易云解析")
             try:
-                resolved_url = await NetworkService.resolve_short_url(original_url)
+                resolved_url = await NcmApiService.resolve_short_url(original_url)
                 logger.debug(f"短链接解析结果: {resolved_url}", "网易云解析")
                 return resolved_url
             except ShortUrlError as e:
@@ -33,7 +32,7 @@ class ParserService:
 
     @staticmethod
     async def fetch_resource_info(
-        resource_type: ResourceType, resource_id: str, parsed_url: str
+        resource_type: ResourceType, resource_id: str
     ) -> Union[SongInfo, AlbumInfo, UserInfo, PlaylistInfo, ArtistInfo]:
         """根据资源类型和ID获取详细信息"""
         logger.debug(
@@ -115,8 +114,6 @@ class ParserService:
             logger.debug(f"递归解析短链接解析结果: {resolved_url}", "网易云解析")
             return await cls.parse(resolved_url)
 
-        parsed_url = final_url if final_url != original_url else original_url
-
         return await cls.fetch_resource_info(
-            resource_type=resource_type, resource_id=resource_id, parsed_url=parsed_url
+            resource_type=resource_type, resource_id=resource_id
         )
