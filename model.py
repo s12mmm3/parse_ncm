@@ -66,3 +66,17 @@ class ArtistInfo(BaseModel):
     albumSize: int     # 专辑数
     mvSize: int        # MV数
     hotSongs: list     # 热门歌曲
+
+class MVInfo(BaseModel):
+    id: str            # id
+    name: str          # 歌名
+    desc: str          # 简介
+    cover: str         # 封面
+    artists: list      # 歌手
+    duration: int      # 时长
+    publishTime: str   # 发布时间 (这里是字符串，跟其他的不一样)
+    playCount: int     # 播放数
+    subCount: int      # 收藏数
+    commentCount: int  # 评论数
+    shareCount: int    # 分享数
+    hotComments: list  # 热门评论

@@ -10,7 +10,7 @@ from nonebot_plugin_alconna import Image, Text, UniMsg
 
 from zhenxun.services.log import logger
 
-from ..model import ArtistInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo
+from ..model import ArtistInfo, MVInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo
 from ..config import base_config, IMAGE_CACHE_DIR
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
@@ -304,6 +304,38 @@ class MessageBuilder:
         text_content += MessageBuilder.get_songs_text(songs = info.hotSongs)
 
         text_content += f"https://music.163.com/#/artist?id={info.id}"
+        segments.append(Text(text_content))
+
+        return UniMsg(segments)
+
+    @staticmethod
+    async def build_mv_message(info: MVInfo) -> UniMsg:
+        """构建mv信息消息"""
+        segments = []
+
+        picUrl = info.cover
+        if base_config.get("SEND_VIDEO_PIC", True) and picUrl:
+            file_name = f"ncm_mv_cover_{info.id}.jpg"
+            cover_path = IMAGE_CACHE_DIR / file_name
+            if await ImageHelper.download_image(f"{picUrl}", cover_path):
+                segments.append(Image(path=cover_path))
+
+        text_content = (
+            f"mv名: {info.name}\n"
+            f"时长: {MessageBuilder.convertTimeToTag(info.duration, 3, False)}\n"
+            f"发布时间: {info.publishTime}\n"
+            f"歌手: {MessageBuilder.get_artist_names(info.artists)}\n"
+            f"简介: {info.desc}\n"
+            # f"id: {info.id}\n"
+
+            f"播放数: {info.playCount} | 收藏数: {info.subCount}\n"
+            f"评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
+        )
+
+        # 热门评论
+        # text_content += MessageBuilder.get_hotComments_text(info.hotComments)
+
+        text_content += f"https://music.163.com/#/song?id={info.id}"
         segments.append(Text(text_content))
 
         return UniMsg(segments)

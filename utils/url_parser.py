@@ -14,12 +14,13 @@ from ..utils.exceptions import UrlParseError, UnsupportedUrlError
 
 class ResourceType(Enum):
     """资源类型"""
-    # 歌曲、专辑、歌单、歌手、用户、短链接
+    # 歌曲、专辑、歌单、歌手、用户、mv、短链接
     SONG = auto()
     ALBUM = auto()
     PLAYLIST = auto()
     USER = auto()
     ARTIST = auto()
+    MV = auto()
     SHORT_URL = auto()
 
 
@@ -130,6 +131,20 @@ class ArtistParser(RegexUrlParser):
         re.IGNORECASE          # 忽略大小写
     )
 
+class MVParser(RegexUrlParser):
+    """网易云音乐mv链接解析器"""
+    
+    PRIORITY = 10
+    RESOURCE_TYPE = ResourceType.MV
+    PATTERN = re.compile(
+        r"music\.163\.com.*/mv(?:\?id=|/)(\d+)",
+        re.IGNORECASE          # 忽略大小写
+    )
+    """
+    https://music.163.com/mv?id=14575961
+    https://music.163.com/#/mv/14575961
+    """
+
 class ShortUrlParser(RegexUrlParser):
     """网易云短链接解析器"""
 
@@ -178,6 +193,7 @@ UrlParserRegistry.register(AlbumParser)
 UrlParserRegistry.register(UserParser)
 UrlParserRegistry.register(PlaylistParser)
 UrlParserRegistry.register(ArtistParser)
+UrlParserRegistry.register(MVParser)
 UrlParserRegistry.register(ShortUrlParser)
 
 def extract_url_from_text(text: str) -> Optional[str]:

@@ -8,7 +8,7 @@ import requests
 from zhenxun.services.log import logger
 
 from ..model import (
-    ArtistInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo,
+    ArtistInfo, MVInfo, PlaylistInfo, SongInfo, AlbumInfo, UserInfo,
 )
 from ..utils.exceptions import (
     NcmResponseError,
@@ -140,13 +140,37 @@ class NcmApiService:
         )
 
         return artist_model
+
+    @staticmethod
+    def _map_mv_info_to_model(info: Dict[str, Any]) -> MVInfo:
+        """将API返回的mv信息映射到MVInfo模型"""
+        data = dict(info["data"])
+        mv_model = MVInfo(
+            id = str(data["id"]),
+            name = str(data["name"]),
+            desc = str(data["desc"]),
+            cover = str(data["cover"]),
+            artists = list(data["artists"]),
+            duration = int(data["duration"]),
+            publishTime = str(data["publishTime"]),
+            playCount = int(data["playCount"]),
+            subCount = int(data["subCount"]),
+            commentCount = int(data["commentCount"]),
+            shareCount = int(data["shareCount"]),
+            hotComments = list(info["hotComments"]),
+        )
+
+        return mv_model
     
 
     @staticmethod
     async def request(uri: str, data):
         domain = "https://music.163.com"
         url = domain + uri
-        response = requests.post(url = url, data = data)
+        response = requests.post(url = url, data = data, headers = {
+            "X-Real-IP": "58.100.87.193",
+            "X-Forwarded-For": "58.100.87.193",
+        })
         response.raise_for_status()
         logger.info(f"URL: {url}, status_code: {response.status_code}, ", "网易云解析")
         data = json.loads(response.text)
@@ -237,6 +261,23 @@ class NcmApiService:
         data0 = { }
         ret0 = dict((await NcmApiService.request(f"/api/v1/artist/{id}", data0)))
         return { **ret0, }
+
+    @staticmethod
+    async def mv_detail(id: str):
+        # mv详情
+        data0 = {
+            "id": id,
+            "composeliked": True,
+        }
+        ret0 = dict((await NcmApiService.request(f"/api/v1/mv/detail", data0)))
+
+        # 简略评论信息
+        ret1 = await NcmApiService.get_commentInfo(id = id, resourceType = 5)
+
+        # 具体评论信息
+        threadId = ret1.get("threadId", "")
+        ret3 = await NcmApiService.comment_event(threadId = threadId)
+        return { **ret0, **ret1, **ret3, }
 
     @staticmethod
     async def get_song_info(id: str) -> SongInfo:
@@ -344,6 +385,28 @@ class NcmApiService:
             logger.error(f"获取歌手信息失败 ({id}): {e}", "网易云解析")
             raise NcmResponseError(
                 f"获取歌手信息意外错误 ({id}): {e}",
+                cause=e,
+                context={"id": id},
+            )
+
+    @staticmethod
+    async def get_mv_info(id: str) -> MVInfo:
+        """获取mv信息"""
+        logger.debug(f"获取mv信息: {id}", "网易云解析")
+
+        try:
+            info = (await NcmApiService.mv_detail(id))
+
+            logger.debug(f"创建MVInfo模型: {id}", "网易云解析")
+            model = NcmApiService._map_mv_info_to_model(info)
+
+            logger.debug(f"mv信息获取成功: {model.name}", "网易云解析")
+            return model
+
+        except Exception as e:
+            logger.error(f"获取mv信息失败 ({id}): {e}", "网易云解析")
+            raise NcmResponseError(
+                f"获取mv信息意外错误 ({id}): {e}",
                 cause=e,
                 context={"id": id},
             )
