@@ -41,29 +41,17 @@ class ParserService:
         )
 
         if resource_type == ResourceType.SONG:
-            return await NcmApiService.get_song_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "歌曲", NcmApiService.song_detail, NcmApiService._map_song_info_to_model)
         elif resource_type == ResourceType.ALBUM:
-            return await NcmApiService.get_album_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "专辑", NcmApiService.album_detail, NcmApiService._map_album_info_to_model)
         elif resource_type == ResourceType.USER:
-            return await NcmApiService.get_user_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "用户", NcmApiService.user_detail, NcmApiService._map_user_info_to_model)
         elif resource_type == ResourceType.PLAYLIST:
-            return await NcmApiService.get_playlist_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "歌单", NcmApiService.playlist_detail, NcmApiService._map_playlist_info_to_model)
         elif resource_type == ResourceType.ARTIST:
-            return await NcmApiService.get_artist_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "歌手", NcmApiService.artist_detail, NcmApiService._map_artist_info_to_model)
         elif resource_type == ResourceType.MV:
-            return await NcmApiService.get_mv_info(
-                id=resource_id
-            )
+            return await NcmApiService.get_info(resource_id, "mv", NcmApiService.mv_detail, NcmApiService._map_mv_info_to_model)
         else:
             raise UnsupportedUrlError(f"不支持的资源类型: {resource_type}")
 
