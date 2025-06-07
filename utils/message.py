@@ -335,7 +335,7 @@ class MessageBuilder:
         # 热门评论
         # text_content += MessageBuilder.get_hotComments_text(info.hotComments)
 
-        text_content += f"https://music.163.com/#/song?id={info.id}"
+        text_content += f"https://music.163.com/#/mv?id={info.id}"
         segments.append(Text(text_content))
 
         return UniMsg(segments)
