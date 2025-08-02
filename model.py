@@ -69,7 +69,7 @@ class ArtistInfo(BaseModel):
 
 class MVInfo(BaseModel):
     id: str            # id
-    name: str          # 歌名
+    name: str          # mv名
     desc: str          # 简介
     cover: str         # 封面
     artists: list      # 歌手

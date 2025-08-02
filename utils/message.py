@@ -65,7 +65,7 @@ class ImageHelper:
             return None
 
 
-SONGCOUNTLIMIT = 10          # 限制打印的歌曲数量
+SONGCOUNTLIMIT = 5          # 限制打印的歌曲数量
 COMMENTCOUNTLIMIT = 3        # 限制打印的评论数量
 COMMENTTEXTCOUNTLIMIT = 40   # 限制打印的评论字数
 
@@ -158,8 +158,7 @@ class MessageBuilder:
             f"歌名: {info.name}\n"
             f"别名: {' / '.join(info.tns + info.alia)}\n"
             f"专辑: {info.al['name']}\n"
-            f"时长: {MessageBuilder.convertTimeToTag(info.dt, 3, False)}\n"
-            f"发布时间: {MessageBuilder.toLocaleDateString(info.publishTime)}\n"
+            f"时长: {MessageBuilder.convertTimeToTag(info.dt, 3, False)} | 发布时间: {MessageBuilder.toLocaleDateString(info.publishTime)}\n"
             f"歌手: {MessageBuilder.get_artist_names(info.ar)}\n"
             # f"id: {info.id}\n"
 
@@ -233,7 +232,7 @@ class MessageBuilder:
         text_content = (
             f"用户名: {info.name}\n"
             f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday) if info.birthday > 0 else ''} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime) if info.createTime > 0 else ''}\n"
-            f"签名: {info.signature}\n"
+            f"签名: {MessageBuilder.truncate_with_ellipsis(info.signature, 10)}\n"
             # f"id: {info.id}\n"
 
             f"动态数量: {info.eventCount} | 歌单数量: {info.playlistCount}\n"
@@ -261,7 +260,7 @@ class MessageBuilder:
             f"歌单名: {info.name}\n"
             f"创建者: {info.creator['nickname']}\n"
             f"创建时间: {MessageBuilder.toLocaleDateString(info.createTime)}\n"
-            f"简介: {info.description}\n"
+            f"简介: {MessageBuilder.truncate_with_ellipsis(info.description, 20)}\n"
             f"播放量: {info.playCount} | 收藏量: {info.subscribedCount} | 评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
             f"标签: {' / '.join(info.tags)}\n"
             # f"id: {info.id}\n"
@@ -294,7 +293,7 @@ class MessageBuilder:
         text_content = (
             f"歌手名: {info.name}\n"
             f"别名: {' / '.join(info.alias)}\n"
-            f"详情: {info.briefDesc}\n"
+            f"详情: {MessageBuilder.truncate_with_ellipsis(info.briefDesc, 10)}\n"
             f"歌曲数: {info.musicSize} | 专辑数: {info.albumSize} | MV数: {info.mvSize}\n"
             # f"id: {info.id}\n"
         )
@@ -322,10 +321,9 @@ class MessageBuilder:
 
         text_content = (
             f"mv名: {info.name}\n"
-            f"时长: {MessageBuilder.convertTimeToTag(info.duration, 3, False)}\n"
-            f"发布时间: {info.publishTime}\n"
+            f"时长: {MessageBuilder.convertTimeToTag(info.duration, 3, False)} | 发布时间: {info.publishTime}\n"
             f"歌手: {MessageBuilder.get_artist_names(info.artists)}\n"
-            f"简介: {info.desc}\n"
+            f"简介: {MessageBuilder.truncate_with_ellipsis(info.desc, 10)}\n"
             # f"id: {info.id}\n"
 
             f"播放数: {info.playCount} | 收藏数: {info.subCount}\n"
