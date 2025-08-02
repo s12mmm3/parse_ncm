@@ -155,8 +155,7 @@ class MessageBuilder:
                 segments.append(Image(path=cover_path))
 
         text_content = (
-            f"歌名: {info.name}\n"
-            f"别名: {' / '.join(info.tns + info.alia)}\n"
+            f"歌名: {info.name} | 别名: {' / '.join(info.tns + info.alia)}\n"
             f"专辑: {info.al['name']}\n"
             f"时长: {MessageBuilder.convertTimeToTag(info.dt, 3, False)} | 发布时间: {MessageBuilder.toLocaleDateString(info.publishTime)}\n"
             f"歌手: {MessageBuilder.get_artist_names(info.ar)}\n"
@@ -199,7 +198,7 @@ class MessageBuilder:
             f"专辑名: {info.name}\n"
             f"发布时间: {MessageBuilder.toLocaleDateString(info.publishTime)}\n"
             f"歌手: {MessageBuilder.get_artist_names(info.artists)}\n"
-            f"简介: {info.description}\n"
+            f"简介: {MessageBuilder.truncate_with_ellipsis(info.description, 20)}\n"
             # f"id: {info.id}\n"
 
             f"评论数: {info.commentCount} | 分享数: {info.shareCount}\n"
@@ -232,7 +231,7 @@ class MessageBuilder:
         text_content = (
             f"用户名: {info.name}\n"
             f"出生日期: {MessageBuilder.toLocaleDateString(info.birthday) if info.birthday > 0 else ''} | 注册时间: {MessageBuilder.toLocaleDateString(info.createTime) if info.createTime > 0 else ''}\n"
-            f"签名: {MessageBuilder.truncate_with_ellipsis(info.signature, 10)}\n"
+            f"签名: {MessageBuilder.truncate_with_ellipsis(info.signature, 20)}\n"
             # f"id: {info.id}\n"
 
             f"动态数量: {info.eventCount} | 歌单数量: {info.playlistCount}\n"
@@ -266,7 +265,6 @@ class MessageBuilder:
             # f"id: {info.id}\n"
         )
 
-        text_content += "\n"
         text_content += f"共{len(info.trackIds)}首曲子\n" # 这里用的是trackIds
         text_content += MessageBuilder.get_songs_text(songs = info.tracks)
 
@@ -291,14 +289,12 @@ class MessageBuilder:
                 segments.append(Image(path=cover_path))
 
         text_content = (
-            f"歌手名: {info.name}\n"
-            f"别名: {' / '.join(info.alias)}\n"
-            f"详情: {MessageBuilder.truncate_with_ellipsis(info.briefDesc, 10)}\n"
+            f"歌手名: {info.name} | 别名: {' / '.join(info.alias)}\n"
+            f"详情: {MessageBuilder.truncate_with_ellipsis(info.briefDesc, 20)}\n"
             f"歌曲数: {info.musicSize} | 专辑数: {info.albumSize} | MV数: {info.mvSize}\n"
             # f"id: {info.id}\n"
         )
 
-        text_content += "\n"
         text_content += f"热门歌曲:\n"
         text_content += MessageBuilder.get_songs_text(songs = info.hotSongs)
 
@@ -323,7 +319,7 @@ class MessageBuilder:
             f"mv名: {info.name}\n"
             f"时长: {MessageBuilder.convertTimeToTag(info.duration, 3, False)} | 发布时间: {info.publishTime}\n"
             f"歌手: {MessageBuilder.get_artist_names(info.artists)}\n"
-            f"简介: {MessageBuilder.truncate_with_ellipsis(info.desc, 10)}\n"
+            f"简介: {MessageBuilder.truncate_with_ellipsis(info.desc, 20)}\n"
             # f"id: {info.id}\n"
 
             f"播放数: {info.playCount} | 收藏数: {info.subCount}\n"
